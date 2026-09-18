@@ -1,288 +1,263 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useState, useEffect } from 'react'
+import {
+  getDailyPlayer,
+  getRandomPlayer,
+  generateShareCard,
+  getPuzzleNumber,
+} from './data/nflPlayers'
+import PlayerSearch from './components/PlayerSearch'
+import GuessGrid from './components/GuessGrid'
+import StatsModal from './components/StatsModal'
 import './App.css'
 
-const FEATURE_DATA = {
-  vite: {
-    title: 'Vite Interactive User Guide',
-    category: 'Documentation',
-    description:
-      'Vite provides a fast development server with instant HMR and optimized production builds.',
-    details: [
-      'Instant Server Start: On-demand file serving over native ESM.',
-      'Lightning Fast HMR: Hot Module Replacement stays fast regardless of application size.',
-      'Rich Features: Out-of-the-box support for TypeScript, JSX, CSS and modern bundling.',
-    ],
-  },
-  react: {
-    title: 'React Interactive User Guide',
-    category: 'Documentation',
-    description:
-      'React enables building component-driven user interfaces with state preservation.',
-    details: [
-      'Component-Based Architecture: Build encapsulated components that manage their own state.',
-      'Declarative UI: React renders the right components efficiently as state changes.',
-      'In-App State Persistence: Single-page state transitions keep users engaged in session.',
-    ],
-  },
-  github: {
-    title: 'Community Repository Hub',
-    category: 'Community',
-    description:
-      'Explore platform capabilities, source code, and contribution guidelines.',
-    details: [
-      'Open Source Contributions: Submit pull requests and review active discussions.',
-      'Issue Tracking: Report bugs and request new internal platform capabilities.',
-      'Changelogs: View recent platform updates and build configurations.',
-    ],
-  },
-  discord: {
-    title: 'Discord Community Channel',
-    category: 'Community',
-    description:
-      'Connect with developers in real-time chat and participate in Q&A sessions.',
-    details: [
-      'Live Discussions: Chat with maintainers and community members in real time.',
-      'Developer Q&A: Get help with implementation and troubleshooting.',
-      'Office Hours: Join scheduled community events and live technical talks.',
-    ],
-  },
-  x: {
-    title: 'X.com Community Feed',
-    category: 'Community',
-    description:
-      'Stay updated with ecosystem announcements and release highlights.',
-    details: [
-      'Official Announcements: Real-time news on new releases and updates.',
-      'Community Showcase: Featured projects and developer spotlights.',
-      'Tips & Insights: Daily developer insights and performance optimizations.',
-    ],
-  },
-  bluesky: {
-    title: 'Bluesky Social Feed',
-    category: 'Community',
-    description:
-      'Follow decentralized network updates and developer discussions.',
-    details: [
-      'Decentralized Social Network: Open network posts and community updates.',
-      'Developer Insights: Ecosystem status and protocol updates.',
-      'Interactive Threads: Engage in open technical discussions.',
-    ],
-  },
+const DEFAULT_STATS = {
+  played: 0,
+  won: 0,
+  currentStreak: 0,
+  maxStreak: 0,
+  guessDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 },
+  lastPlayedDate: null,
 }
 
-function App() {
-  const [count, setCount] = useState(0)
-  const [activeFeature, setActiveFeature] = useState(null)
-  const [featureStats, setFeatureStats] = useState({
-    vite: 0,
-    react: 0,
-    github: 0,
-    discord: 0,
-    x: 0,
-    bluesky: 0,
+export default function App() {
+  const [gameMode, setGameMode] = useState('daily') // 'daily' | 'practice'
+  const [targetPlayer, setTargetPlayer] = useState(() => getDailyPlayer())
+  const [guesses, setGuesses] = useState([])
+  const [gameStatus, setGameStatus] = useState('IN_PROGRESS') // 'IN_PROGRESS' | 'WON' | 'LOST'
+  const [isStatsOpen, setIsStatsOpen] = useState(false)
+  const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [copiedShare, setCopiedShare] = useState(false)
+
+  const [stats, setStats] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gridiron_guesser_stats')
+      return saved ? { ...DEFAULT_STATS, ...JSON.parse(saved) } : DEFAULT_STATS
+    } catch {
+      return DEFAULT_STATS
+    }
   })
 
-  const handleFeatureClick = (featureId) => {
-    setActiveFeature((prev) => (prev === featureId ? null : featureId))
-    setFeatureStats((prev) => ({
-      ...prev,
-      [featureId]: prev[featureId] + 1,
-    }))
+  // Save stats to localStorage on update
+  useEffect(() => {
+    try {
+      localStorage.setItem('gridiron_guesser_stats', JSON.stringify(stats))
+    } catch {
+      // ignore storage errors
+    }
+  }, [stats])
+
+  // Handle mode switch or initial game set up
+  const initGame = (mode) => {
+    setGameMode(mode)
+    setGuesses([])
+    setGameStatus('IN_PROGRESS')
+    if (mode === 'daily') {
+      setTargetPlayer(getDailyPlayer())
+    } else {
+      setTargetPlayer(getRandomPlayer())
+    }
   }
 
-  const activeData = activeFeature ? FEATURE_DATA[activeFeature] : null
+  const handleSelectPlayer = (player) => {
+    if (gameStatus !== 'IN_PROGRESS' || guesses.length >= 8) return
+
+    const newGuesses = [...guesses, player]
+    setGuesses(newGuesses)
+
+    const isWin = String(player.id) === String(targetPlayer.id)
+    const isLoss = !isWin && newGuesses.length >= 8
+
+    if (isWin || isLoss) {
+      const status = isWin ? 'WON' : 'LOST'
+      setGameStatus(status)
+      setIsStatsOpen(true)
+
+      // Update statistics
+      setStats((prev) => {
+        const todayStr = new Date().toISOString().slice(0, 10)
+        const isNewDay = prev.lastPlayedDate !== todayStr
+        const newPlayed = prev.played + 1
+        const newWon = isWin ? prev.won + 1 : prev.won
+        
+        let newStreak = prev.currentStreak
+        if (isWin) {
+          newStreak = isNewDay || gameMode === 'practice' ? prev.currentStreak + 1 : prev.currentStreak
+        } else {
+          newStreak = 0
+        }
+
+        const newMaxStreak = Math.max(prev.maxStreak, newStreak)
+        const numGuesses = newGuesses.length
+        const newDist = { ...prev.guessDistribution }
+        if (isWin && numGuesses >= 1 && numGuesses <= 8) {
+          newDist[numGuesses] = (newDist[numGuesses] || 0) + 1
+        }
+
+        return {
+          played: newPlayed,
+          won: newWon,
+          currentStreak: newStreak,
+          maxStreak: newMaxStreak,
+          guessDistribution: newDist,
+          lastPlayedDate: todayStr,
+        }
+      })
+    }
+  }
+
+  const handleQuickShare = () => {
+    const puzzleNum = getPuzzleNumber()
+    const isWin = gameStatus === 'WON'
+    const shareText = generateShareCard(guesses, targetPlayer, gameMode, puzzleNum, isWin)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(shareText).then(() => {
+        setCopiedShare(true)
+        setTimeout(() => setCopiedShare(false), 2500)
+      })
+    }
+  }
+
+  const puzzleNum = getPuzzleNumber()
+  const guessedIds = guesses.map((g) => g.id)
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="app-stadium-layout">
+      <header className="stadium-header">
+        <div className="header-content">
+          <div className="header-titles">
+            <h1>GRIDIRON GUESSER 🏈</h1>
+            <p className="subtitle">NFL Player Wordle Challenge • Guess in 8 tries!</p>
+          </div>
+          <div className="header-controls">
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => setIsHelpOpen(!isHelpOpen)}
+              title="How to Play"
+              aria-label="How to play"
+            >
+              ❓
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => setIsStatsOpen(true)}
+              title="Statistics"
+              aria-label="Statistics"
+            >
+              📊
+            </button>
+          </div>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <button
-                type="button"
-                className={`feature-btn ${activeFeature === 'vite' ? 'active' : ''}`}
-                onClick={() => handleFeatureClick('vite')}
-                aria-expanded={activeFeature === 'vite'}
-                aria-controls="feature-drawer"
-              >
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                className={`feature-btn ${activeFeature === 'react' ? 'active' : ''}`}
-                onClick={() => handleFeatureClick('react')}
-                aria-expanded={activeFeature === 'react'}
-                aria-controls="feature-drawer"
-              >
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </button>
-            </li>
-          </ul>
+        <div className="mode-selector">
+          <button
+            type="button"
+            className={`mode-tab ${gameMode === 'daily' ? 'active' : ''}`}
+            onClick={() => initGame('daily')}
+          >
+            📅 Daily #{puzzleNum}
+          </button>
+          <button
+            type="button"
+            className={`mode-tab ${gameMode === 'practice' ? 'active' : ''}`}
+            onClick={() => initGame('practice')}
+          >
+            🎮 Practice Mode
+          </button>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <button
-                type="button"
-                className={`feature-btn ${activeFeature === 'github' ? 'active' : ''}`}
-                onClick={() => handleFeatureClick('github')}
-                aria-expanded={activeFeature === 'github'}
-                aria-controls="feature-drawer"
-              >
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                className={`feature-btn ${activeFeature === 'discord' ? 'active' : ''}`}
-                onClick={() => handleFeatureClick('discord')}
-                aria-expanded={activeFeature === 'discord'}
-                aria-controls="feature-drawer"
-              >
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                className={`feature-btn ${activeFeature === 'x' ? 'active' : ''}`}
-                onClick={() => handleFeatureClick('x')}
-                aria-expanded={activeFeature === 'x'}
-                aria-controls="feature-drawer"
-              >
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                className={`feature-btn ${activeFeature === 'bluesky' ? 'active' : ''}`}
-                onClick={() => handleFeatureClick('bluesky')}
-                aria-expanded={activeFeature === 'bluesky'}
-                aria-controls="feature-drawer"
-              >
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </button>
-            </li>
-          </ul>
-        </div>
-      </section>
+      </header>
 
-      {activeData && (
-        <section id="feature-drawer" className="feature-drawer">
-          <div className="feature-drawer-header">
-            <div>
-              <span className="feature-badge">{activeData.category}</span>
-              <h3>{activeData.title}</h3>
+      <main className="game-main-area">
+        {isHelpOpen && (
+          <section className="how-to-play-card">
+            <div className="card-header">
+              <h3>HOW TO PLAY</h3>
+              <button
+                type="button"
+                className="close-card-btn"
+                onClick={() => setIsHelpOpen(false)}
+              >
+                ✕
+              </button>
             </div>
-            <button
-              type="button"
-              className="close-btn"
-              onClick={() => setActiveFeature(null)}
-              aria-label="Close feature panel"
-            >
-              ✕ Close
-            </button>
-          </div>
-          <p className="feature-description">{activeData.description}</p>
-          <ul className="feature-details">
-            {activeData.details.map((detail, index) => (
-              <li key={index}>{detail}</li>
-            ))}
-          </ul>
-          <div className="feature-drawer-footer">
-            <span className="feature-stats">
-              Usage Interactions: <strong>{featureStats[activeFeature]}</strong>
-            </span>
-            <button
-              type="button"
-              className="track-activity-btn"
-              onClick={() =>
-                setFeatureStats((prev) => ({
-                  ...prev,
-                  [activeFeature]: prev[activeFeature] + 1,
-                }))
-              }
-            >
-              Track Activity
-            </button>
-          </div>
-        </section>
-      )}
+            <p>Guess the mystery NFL player in 8 tries or fewer.</p>
+            <ul className="guide-legend-list">
+              <li>
+                <span className="legend-swatch correct">🟩 Green</span>: Exact match
+              </li>
+              <li>
+                <span className="legend-swatch close">🟨 Yellow</span>: Close match (Same conference/division, position group, age within 2, jersey # within 5, Pro Bowls within 1)
+              </li>
+              <li>
+                <span className="legend-swatch incorrect">⬛ Gray</span>: No match
+              </li>
+              <li>
+                <span className="legend-indicator">↑ / ↓</span>: Directional arrows show if mystery attribute value is higher or lower!
+              </li>
+            </ul>
+          </section>
+        )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+        <section className="search-section">
+          <PlayerSearch
+            onSelectPlayer={handleSelectPlayer}
+            guessedIds={guessedIds}
+            disabled={gameStatus !== 'IN_PROGRESS'}
+          />
+        </section>
+
+        <section className="grid-section">
+          <GuessGrid guesses={guesses} targetPlayer={targetPlayer} maxGuesses={8} />
+        </section>
+
+        {gameStatus !== 'IN_PROGRESS' && (
+          <section className="game-ended-quick-bar">
+            <p className="end-msg">
+              {gameStatus === 'WON'
+                ? `🎉 Correct! It's ${targetPlayer.name}!`
+                : `🏈 Out of guesses! Mystery player was ${targetPlayer.name}.`}
+            </p>
+            <div className="end-btn-group">
+              <button type="button" className="quick-share-btn" onClick={handleQuickShare}>
+                {copiedShare ? '✅ Copied!' : '📤 Share Results'}
+              </button>
+              {gameMode === 'practice' ? (
+                <button
+                  type="button"
+                  className="quick-again-btn"
+                  onClick={() => initGame('practice')}
+                >
+                  🔄 Next Player
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="quick-again-btn"
+                  onClick={() => initGame('practice')}
+                >
+                  🎮 Try Practice Mode
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+      </main>
+
+      <StatsModal
+        isOpen={isStatsOpen}
+        onClose={() => setIsStatsOpen(false)}
+        isWin={gameStatus === 'WON'}
+        isGameOver={gameStatus !== 'IN_PROGRESS'}
+        targetPlayer={targetPlayer}
+        guesses={guesses}
+        gameMode={gameMode}
+        stats={stats}
+        onPlayAgain={() => {
+          setIsStatsOpen(false)
+          initGame(gameMode === 'daily' ? 'practice' : 'practice')
+        }}
+      />
+    </div>
   )
 }
-
-export default App
