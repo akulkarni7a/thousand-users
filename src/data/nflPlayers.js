@@ -554,6 +554,41 @@ export function comparePlayers(guess, target) {
   }
 }
 
+export const DAILY_STORAGE_KEY = 'gridiron_guesser_daily_state'
+
+export function loadDailyState(dateStr) {
+  const todayStr = dateStr || new Date().toISOString().slice(0, 10)
+  try {
+    const saved = localStorage.getItem(DAILY_STORAGE_KEY)
+    if (!saved) return null
+    const parsed = JSON.parse(saved)
+    if (parsed && typeof parsed === 'object' && parsed.date === todayStr) {
+      return {
+        date: parsed.date,
+        puzzleNum: typeof parsed.puzzleNum === 'number' ? parsed.puzzleNum : getPuzzleNumber(todayStr),
+        guesses: Array.isArray(parsed.guesses) ? parsed.guesses : [],
+        gameStatus: ['IN_PROGRESS', 'WON', 'LOST'].includes(parsed.gameStatus)
+          ? parsed.gameStatus
+          : 'IN_PROGRESS',
+      }
+    } else {
+      localStorage.removeItem(DAILY_STORAGE_KEY)
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return null
+}
+
+export function saveDailyState(state) {
+  try {
+    if (!state) return
+    localStorage.setItem(DAILY_STORAGE_KEY, JSON.stringify(state))
+  } catch {
+    // ignore storage errors
+  }
+}
+
 export function getDailyPlayer(dateStr) {
   const targetDate = dateStr || new Date().toISOString().slice(0, 10)
   let hash = 0

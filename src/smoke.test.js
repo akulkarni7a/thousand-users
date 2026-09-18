@@ -1,4 +1,4 @@
-import { test, expect } from 'vitest'
+import { test, expect, beforeEach } from 'vitest'
 import React from 'react'
 import { renderToString } from 'react-dom/server'
 import App from './App.jsx'
@@ -9,7 +9,32 @@ import {
   generateShareCard,
   getDailyPlayer,
   getRandomPlayer,
+  getPuzzleNumber,
+  loadDailyState,
+  saveDailyState,
+  DAILY_STORAGE_KEY,
 } from './data/nflPlayers.js'
+
+// Simple localStorage polyfill if test environment doesn't provide full storage
+if (typeof globalThis.localStorage === 'undefined' || !globalThis.localStorage.setItem) {
+  let store = {}
+  globalThis.localStorage = {
+    getItem: (key) => store[key] || null,
+    setItem: (key, val) => {
+      store[key] = String(val)
+    },
+    removeItem: (key) => {
+      delete store[key]
+    },
+    clear: () => {
+      store = {}
+    },
+  }
+}
+
+beforeEach(() => {
+  localStorage.clear()
+})
 
 test('the app module loads without crashing', async () => {
   const mod = await import('./App.jsx')
@@ -126,3 +151,60 @@ test('generateShareCard formats loss correctly', () => {
 
   expect(shareText).toContain('Gridiron Guesser Practice X/8')
 })
+
+test('saveDailyState and loadDailyState persist state for same date', () => {
+  const todayStr = '2026-09-18'
+  const state = {
+    date: todayStr,
+    puzzleNum: 261,
+    guesses: [NFL_PLAYERS[1]],
+    gameStatus: 'IN_PROGRESS',
+  }
+
+  saveDailyState(state)
+
+  const loaded = loadDailyState(todayStr)
+  expect(loaded).not.toBeNull()
+  expect(loaded.date).toBe(todayStr)
+  expect(loaded.puzzleNum).toBe(261)
+  expect(loaded.guesses).toHaveLength(1)
+  expect(loaded.guesses[0].id).toBe(NFL_PLAYERS[1].id)
+  expect(loaded.gameStatus).toBe('IN_PROGRESS')
+})
+
+test('loadDailyState purges stale daily state when date changes', () => {
+  const yesterdayStr = '2026-09-17'
+  const todayStr = '2026-09-18'
+
+  const yesterdayState = {
+    date: yesterdayStr,
+    puzzleNum: 260,
+    guesses: [NFL_PLAYERS[0]],
+    gameStatus: 'WON',
+  }
+
+  saveDailyState(yesterdayState)
+  expect(localStorage.getItem(DAILY_STORAGE_KEY)).not.toBeNull()
+
+  // Calling loadDailyState for today should purge stale state
+  const loaded = loadDailyState(todayStr)
+  expect(loaded).toBeNull()
+  expect(localStorage.getItem(DAILY_STORAGE_KEY)).toBeNull()
+})
+
+test('App rehydrates saved daily state on render', () => {
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const savedState = {
+    date: todayStr,
+    puzzleNum: getPuzzleNumber(todayStr),
+    guesses: [NFL_PLAYERS[1]],
+    gameStatus: 'IN_PROGRESS',
+  }
+
+  saveDailyState(savedState)
+
+  const html = renderToString(React.createElement(App))
+  // The saved guess "Travis Kelce" should be rendered in the grid/page
+  expect(html).toContain('Travis Kelce')
+})
+
