@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
 import {
+  NFL_PLAYERS,
   getDailyPlayer,
+  getDailyPlayerByPuzzleNumber,
   getRandomPlayer,
   generateShareCard,
   getPuzzleNumber,
+  getShareUrl,
 } from './data/nflPlayers'
 import PlayerSearch from './components/PlayerSearch'
 import GuessGrid from './components/GuessGrid'
 import StatsModal from './components/StatsModal'
+import { copyToClipboard, triggerNativeShare, openSocialShareIntent } from './utils/shareUtils'
 import './App.css'
 
 const DEFAULT_STATS = {
@@ -19,9 +23,83 @@ const DEFAULT_STATS = {
   lastPlayedDate: null,
 }
 
+function getInitialGameState() {
+  if (typeof window === 'undefined') {
+    return {
+      gameMode: 'daily',
+      targetPlayer: getDailyPlayer(),
+      isChallengeActive: false,
+      customPuzzleNum: null,
+    }
+  }
+
+  const params = new URLSearchParams(window.location.search)
+  const modeParam = params.get('mode')
+  const puzzleParam = params.get('puzzle')
+  const challengeParam = params.get('challenge')
+
+  if (modeParam === 'practice' || challengeParam) {
+    if (challengeParam) {
+      const foundPlayer = NFL_PLAYERS.find(
+        (p) => String(p.id) === String(challengeParam)
+      )
+      if (foundPlayer) {
+        return {
+          gameMode: 'practice',
+          targetPlayer: foundPlayer,
+          isChallengeActive: true,
+          customPuzzleNum: null,
+        }
+      }
+      return {
+        gameMode: 'practice',
+        targetPlayer: getRandomPlayer(),
+        isChallengeActive: false,
+        customPuzzleNum: null,
+      }
+    }
+    return {
+      gameMode: 'practice',
+      targetPlayer: getRandomPlayer(),
+      isChallengeActive: false,
+      customPuzzleNum: null,
+    }
+  }
+
+  if (modeParam === 'daily' || puzzleParam) {
+    if (puzzleParam) {
+      const pNum = parseInt(puzzleParam, 10)
+      if (!isNaN(pNum) && pNum >= 1) {
+        return {
+          gameMode: 'daily',
+          targetPlayer: getDailyPlayerByPuzzleNumber(pNum),
+          isChallengeActive: false,
+          customPuzzleNum: pNum,
+        }
+      }
+    }
+    return {
+      gameMode: 'daily',
+      targetPlayer: getDailyPlayer(),
+      isChallengeActive: false,
+      customPuzzleNum: null,
+    }
+  }
+
+  return {
+    gameMode: 'daily',
+    targetPlayer: getDailyPlayer(),
+    isChallengeActive: false,
+    customPuzzleNum: null,
+  }
+}
+
 export default function App() {
-  const [gameMode, setGameMode] = useState('daily') // 'daily' | 'practice'
-  const [targetPlayer, setTargetPlayer] = useState(() => getDailyPlayer())
+  const [initialState] = useState(getInitialGameState)
+  const [gameMode, setGameMode] = useState(initialState.gameMode) // 'daily' | 'practice'
+  const [targetPlayer, setTargetPlayer] = useState(initialState.targetPlayer)
+  const [isChallengeActive, setIsChallengeActive] = useState(initialState.isChallengeActive)
+  const [customPuzzleNum, setCustomPuzzleNum] = useState(initialState.customPuzzleNum)
   const [guesses, setGuesses] = useState([])
   const [gameStatus, setGameStatus] = useState('IN_PROGRESS') // 'IN_PROGRESS' | 'WON' | 'LOST'
   const [isStatsOpen, setIsStatsOpen] = useState(false)
@@ -51,6 +129,8 @@ export default function App() {
     setGameMode(mode)
     setGuesses([])
     setGameStatus('IN_PROGRESS')
+    setIsChallengeActive(false)
+    setCustomPuzzleNum(null)
     if (mode === 'daily') {
       setTargetPlayer(getDailyPlayer())
     } else {
@@ -105,19 +185,41 @@ export default function App() {
     }
   }
 
-  const handleQuickShare = () => {
-    const puzzleNum = getPuzzleNumber()
+  const activePuzzleNum = customPuzzleNum || getPuzzleNumber()
+
+  const handleQuickShare = async () => {
     const isWin = gameStatus === 'WON'
-    const shareText = generateShareCard(guesses, targetPlayer, gameMode, puzzleNum, isWin)
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(shareText).then(() => {
-        setCopiedShare(true)
-        setTimeout(() => setCopiedShare(false), 2500)
+    const shareText = generateShareCard(guesses, targetPlayer, gameMode, activePuzzleNum, isWin)
+    const shareUrl = getShareUrl(gameMode, activePuzzleNum, targetPlayer)
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      const shared = await triggerNativeShare({
+        title: gameMode === 'daily' ? `Gridiron Guesser #${activePuzzleNum}` : 'Gridiron Guesser Practice',
+        text: shareText,
+        url: shareUrl,
       })
+      if (shared) return
+    }
+
+    const copiedOk = await copyToClipboard(shareText)
+    if (copiedOk) {
+      setCopiedShare(true)
+      setTimeout(() => setCopiedShare(false), 2500)
     }
   }
 
-  const puzzleNum = getPuzzleNumber()
+  const handleQuickSocialShare = (platform) => {
+    const isWin = gameStatus === 'WON'
+    const shareText = generateShareCard(guesses, targetPlayer, gameMode, activePuzzleNum, isWin)
+    const shareUrl = getShareUrl(gameMode, activePuzzleNum, targetPlayer)
+    openSocialShareIntent(platform, {
+      text: shareText,
+      title: gameMode === 'daily' ? `Gridiron Guesser #${activePuzzleNum}` : 'Gridiron Guesser Practice',
+      url: shareUrl,
+    })
+  }
+
+  const puzzleNum = activePuzzleNum
   const guessedIds = guesses.map((g) => g.id)
 
   return (
@@ -169,6 +271,25 @@ export default function App() {
       </header>
 
       <main className="game-main-area">
+        {isChallengeActive && (
+          <div className="challenge-banner" role="status">
+            <div className="challenge-banner-content">
+              <span className="challenge-icon">⚔️</span>
+              <div className="challenge-text">
+                <strong>Challenge Accepted!</strong> You're solving a custom shared practice challenge. Good luck!
+              </div>
+            </div>
+            <button
+              type="button"
+              className="close-banner-btn"
+              onClick={() => setIsChallengeActive(false)}
+              aria-label="Dismiss challenge notification"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {isHelpOpen && (
           <section className="how-to-play-card">
             <div className="card-header">
@@ -222,6 +343,35 @@ export default function App() {
               <button type="button" className="quick-share-btn" onClick={handleQuickShare}>
                 {copiedShare ? '✅ Copied!' : '📤 Share Results'}
               </button>
+              <div className="quick-social-group">
+                <button
+                  type="button"
+                  className="social-btn twitter-btn"
+                  onClick={() => handleQuickSocialShare('twitter')}
+                  title="Share to Twitter / X"
+                  aria-label="Share to Twitter or X"
+                >
+                  𝕏
+                </button>
+                <button
+                  type="button"
+                  className="social-btn reddit-btn"
+                  onClick={() => handleQuickSocialShare('reddit')}
+                  title="Share to Reddit"
+                  aria-label="Share to Reddit"
+                >
+                  🤖
+                </button>
+                <button
+                  type="button"
+                  className="social-btn whatsapp-btn"
+                  onClick={() => handleQuickSocialShare('whatsapp')}
+                  title="Share to WhatsApp"
+                  aria-label="Share to WhatsApp"
+                >
+                  💬
+                </button>
+              </div>
               {gameMode === 'practice' ? (
                 <button
                   type="button"

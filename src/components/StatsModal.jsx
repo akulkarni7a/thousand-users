@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { generateShareCard, getPuzzleNumber } from '../data/nflPlayers'
+import { generateShareCard, getPuzzleNumber, getShareUrl } from '../data/nflPlayers'
+import { copyToClipboard, triggerNativeShare, openSocialShareIntent } from '../utils/shareUtils'
 
 export default function StatsModal({
   isOpen,
@@ -18,16 +19,34 @@ export default function StatsModal({
 
   const puzzleNum = getPuzzleNumber()
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const text = generateShareCard(guesses, targetPlayer, gameMode, puzzleNum, isWin)
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(() => {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2500)
-      }).catch(() => {
-        setCopied(false)
+    const shareUrl = getShareUrl(gameMode, puzzleNum, targetPlayer)
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      const shared = await triggerNativeShare({
+        title: gameMode === 'daily' ? `Gridiron Guesser #${puzzleNum}` : 'Gridiron Guesser Practice',
+        text,
+        url: shareUrl,
       })
+      if (shared) return
     }
+
+    const copiedOk = await copyToClipboard(text)
+    if (copiedOk) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    }
+  }
+
+  const handleSocialShare = (platform) => {
+    const text = generateShareCard(guesses, targetPlayer, gameMode, puzzleNum, isWin)
+    const shareUrl = getShareUrl(gameMode, puzzleNum, targetPlayer)
+    openSocialShareIntent(platform, {
+      text,
+      title: gameMode === 'daily' ? `Gridiron Guesser #${puzzleNum}` : 'Gridiron Guesser Practice',
+      url: shareUrl,
+    })
   }
 
   const winPercentage = stats.played > 0 ? Math.round((stats.won / stats.played) * 100) : 0
@@ -102,6 +121,35 @@ export default function StatsModal({
             <button type="button" className="share-btn" onClick={handleShare}>
               {copied ? '✅ Copied to Clipboard!' : '📤 Share Results'}
             </button>
+            <div className="social-share-row">
+              <button
+                type="button"
+                className="social-btn twitter-btn"
+                onClick={() => handleSocialShare('twitter')}
+                title="Share to Twitter / X"
+                aria-label="Share to Twitter or X"
+              >
+                𝕏 Twitter
+              </button>
+              <button
+                type="button"
+                className="social-btn reddit-btn"
+                onClick={() => handleSocialShare('reddit')}
+                title="Share to Reddit"
+                aria-label="Share to Reddit"
+              >
+                🤖 Reddit
+              </button>
+              <button
+                type="button"
+                className="social-btn whatsapp-btn"
+                onClick={() => handleSocialShare('whatsapp')}
+                title="Share to WhatsApp"
+                aria-label="Share to WhatsApp"
+              >
+                💬 WhatsApp
+              </button>
+            </div>
             {gameMode === 'practice' ? (
               <button type="button" className="play-again-btn" onClick={onPlayAgain}>
                 🔄 Next Practice Player

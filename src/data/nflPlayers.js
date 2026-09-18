@@ -565,6 +565,15 @@ export function getDailyPlayer(dateStr) {
   return NFL_PLAYERS[index]
 }
 
+export function getDailyPlayerByPuzzleNumber(puzzleNum) {
+  const num = parseInt(puzzleNum, 10)
+  if (isNaN(num) || num < 1) return getDailyPlayer()
+  const startDate = new Date('2026-01-01T00:00:00Z')
+  startDate.setUTCDate(startDate.getUTCDate() + (num - 1))
+  const dateStr = startDate.toISOString().slice(0, 10)
+  return getDailyPlayer(dateStr)
+}
+
 export function getRandomPlayer(excludeId = null) {
   const available = NFL_PLAYERS.filter((p) => String(p.id) !== String(excludeId))
   const index = Math.floor(Math.random() * available.length)
@@ -577,6 +586,29 @@ export function getPuzzleNumber(dateStr) {
   const diffTime = Math.abs(targetDate - startDate)
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
   return diffDays + 1
+}
+
+export function getShareUrl(gameMode = 'daily', puzzleNum = 1, targetPlayer = null) {
+  let baseUrl = 'https://gridiron-guesser.app'
+  if (
+    typeof window !== 'undefined' &&
+    window.location &&
+    window.location.origin &&
+    window.location.origin !== 'null' &&
+    window.location.origin !== 'about:blank'
+  ) {
+    baseUrl = window.location.origin + window.location.pathname
+  }
+  if (baseUrl.endsWith('/')) {
+    baseUrl = baseUrl.slice(0, -1)
+  }
+
+  const queryParams =
+    gameMode === 'daily'
+      ? `?mode=daily&puzzle=${puzzleNum}`
+      : `?mode=practice&challenge=${targetPlayer?.id || ''}`
+
+  return `${baseUrl}${queryParams}`
 }
 
 export function generateShareCard(guesses, targetPlayer, gameMode = 'daily', puzzleNum = 1, isWin = false) {
@@ -609,5 +641,7 @@ export function generateShareCard(guesses, targetPlayer, gameMode = 'daily', puz
     ].join('')
   })
 
-  return `${title} ${guessCountText}\n\n${rows.join('\n')}\n\nhttps://gridiron-guesser.app`
+  const targetUrl = getShareUrl(gameMode, puzzleNum, targetPlayer)
+
+  return `${title} ${guessCountText}\n\n${rows.join('\n')}\n\n${targetUrl}`
 }
