@@ -4,6 +4,8 @@ import {
   getRandomPlayer,
   generateShareCard,
   getPuzzleNumber,
+  loadDailyState,
+  saveDailyState,
 } from './data/nflPlayers'
 import PlayerSearch from './components/PlayerSearch'
 import GuessGrid from './components/GuessGrid'
@@ -22,8 +24,14 @@ const DEFAULT_STATS = {
 export default function App() {
   const [gameMode, setGameMode] = useState('daily') // 'daily' | 'practice'
   const [targetPlayer, setTargetPlayer] = useState(() => getDailyPlayer())
-  const [guesses, setGuesses] = useState([])
-  const [gameStatus, setGameStatus] = useState('IN_PROGRESS') // 'IN_PROGRESS' | 'WON' | 'LOST'
+  const [guesses, setGuesses] = useState(() => {
+    const saved = loadDailyState()
+    return saved ? saved.guesses : []
+  })
+  const [gameStatus, setGameStatus] = useState(() => {
+    const saved = loadDailyState()
+    return saved ? saved.gameStatus : 'IN_PROGRESS'
+  }) // 'IN_PROGRESS' | 'WON' | 'LOST'
   const [isStatsOpen, setIsStatsOpen] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false)
   const [copiedShare, setCopiedShare] = useState(false)
@@ -46,14 +54,37 @@ export default function App() {
     }
   }, [stats])
 
+  // Save daily state to localStorage on update when in daily mode
+  useEffect(() => {
+    if (gameMode === 'daily') {
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const pNum = getPuzzleNumber(todayStr)
+      saveDailyState({
+        date: todayStr,
+        puzzleNum: pNum,
+        guesses,
+        gameStatus,
+      })
+    }
+  }, [gameMode, guesses, gameStatus])
+
   // Handle mode switch or initial game set up
   const initGame = (mode) => {
     setGameMode(mode)
-    setGuesses([])
-    setGameStatus('IN_PROGRESS')
     if (mode === 'daily') {
-      setTargetPlayer(getDailyPlayer())
+      const todayStr = new Date().toISOString().slice(0, 10)
+      setTargetPlayer(getDailyPlayer(todayStr))
+      const saved = loadDailyState(todayStr)
+      if (saved) {
+        setGuesses(saved.guesses)
+        setGameStatus(saved.gameStatus)
+      } else {
+        setGuesses([])
+        setGameStatus('IN_PROGRESS')
+      }
     } else {
+      setGuesses([])
+      setGameStatus('IN_PROGRESS')
       setTargetPlayer(getRandomPlayer())
     }
   }
@@ -66,9 +97,9 @@ export default function App() {
 
     const isWin = String(player.id) === String(targetPlayer.id)
     const isLoss = !isWin && newGuesses.length >= 8
+    const status = isWin ? 'WON' : isLoss ? 'LOST' : 'IN_PROGRESS'
 
     if (isWin || isLoss) {
-      const status = isWin ? 'WON' : 'LOST'
       setGameStatus(status)
       setIsStatsOpen(true)
 
@@ -101,6 +132,17 @@ export default function App() {
           guessDistribution: newDist,
           lastPlayedDate: todayStr,
         }
+      })
+    }
+
+    if (gameMode === 'daily') {
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const pNum = getPuzzleNumber(todayStr)
+      saveDailyState({
+        date: todayStr,
+        puzzleNum: pNum,
+        guesses: newGuesses,
+        gameStatus: status,
       })
     }
   }
