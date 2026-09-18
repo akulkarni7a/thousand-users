@@ -182,3 +182,49 @@
     border-right-color: var(--border);
   }
 }
+
+.engagement-container {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.engagement-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-h, #333);
+}
+
+.engagement-grid {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.metric-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--social-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border, #ccc);
+  border-radius: 8px;
+  min-width: 100px;
+}
+
+.metric-value {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--accent, #3b82f6);
+}
+
+.metric-label {
+  font-size: 0.8rem;
+  color: var(--text-p, #666);
+  margin-top: 4px;
+}
+

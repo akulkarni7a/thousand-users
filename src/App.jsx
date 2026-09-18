@@ -1,11 +1,20 @@
-import { useState } from 'react'
+import useLocalStorage from './useLocalStorage'
+import { getEngagementMetrics } from './utils/engagement'
 import heroImg from './assets/hero.png'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useLocalStorage('count', 0)
+  const [activityLogs, setActivityLogs] = useLocalStorage('activity_logs', [])
+
+  const metrics = getEngagementMetrics(activityLogs)
+
+  const handleIncrement = () => {
+    setCount((prev) => prev + 1)
+    setActivityLogs((prevLogs) => [...prevLogs, new Date().toISOString()])
+  }
 
   return (
     <>
@@ -24,10 +33,28 @@ function App() {
         <button
           type="button"
           className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          onClick={handleIncrement}
         >
           Count is {count}
         </button>
+
+        <div className="engagement-container">
+          <h2 className="engagement-title">Weekly Engagement</h2>
+          <div className="engagement-grid">
+            <div className="metric-badge">
+              <span className="metric-value">{metrics.currentStreak} {metrics.currentStreak === 1 ? 'day' : 'days'}</span>
+              <span className="metric-label">Active Streak 🔥</span>
+            </div>
+            <div className="metric-badge">
+              <span className="metric-value">{metrics.weeklyActiveDays} / 7</span>
+              <span className="metric-label">This Week 📅</span>
+            </div>
+            <div className="metric-badge">
+              <span className="metric-value">{metrics.totalActiveDays}</span>
+              <span className="metric-label">Total Active Days 🌟</span>
+            </div>
+          </div>
+        </div>
       </section>
 
       <div className="ticks"></div>
