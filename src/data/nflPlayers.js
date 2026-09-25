@@ -644,5 +644,11 @@ export function generateShareCard(guesses, targetPlayer, gameMode = 'daily', puz
     ].join('')
   })
 
-  return `${title} ${guessCountText}\n\n${rows.join('\n')}\n\nhttps://gridiron-guesser.app`
+  const campaign = gameMode === 'daily' ? 'daily_challenge' : 'practice_mode'
+  let shareUrl = `https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=${campaign}&mode=${gameMode}`
+  if (gameMode === 'daily') {
+    shareUrl += `&puzzle=${puzzleNum}`
+  }
+
+  return `${title} ${guessCountText}\n\n${rows.join('\n')}\n\n${shareUrl}`
 }
