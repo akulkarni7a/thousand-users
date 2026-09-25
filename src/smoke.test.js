@@ -130,7 +130,7 @@ test('getDailyPlayer and getRandomPlayer select valid players', () => {
   expect(randomP.id).not.toBe('1')
 })
 
-test('generateShareCard formats emoji grid and stats accurately', () => {
+test('generateShareCard formats emoji grid, stats, and UTM parameters accurately', () => {
   const target = NFL_PLAYERS[0] // Mahomes
   const guess1 = NFL_PLAYERS[1] // Kelce
   const guess2 = NFL_PLAYERS[0] // Mahomes
@@ -138,18 +138,19 @@ test('generateShareCard formats emoji grid and stats accurately', () => {
   const shareText = generateShareCard([guess1, guess2], target, 'daily', 42, true)
 
   expect(shareText).toContain('Gridiron Guesser #42 2/8')
-  expect(shareText).toContain('https://gridiron-guesser.app')
+  expect(shareText).toContain('https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=daily_challenge&mode=daily&puzzle=42')
   // Should contain emoji representation
   expect(shareText).toContain('🟩')
 })
 
-test('generateShareCard formats loss correctly', () => {
+test('generateShareCard formats practice mode UTM parameters accurately', () => {
   const target = NFL_PLAYERS[0]
   const guesses = [NFL_PLAYERS[1]]
 
   const shareText = generateShareCard(guesses, target, 'practice', 1, false)
 
   expect(shareText).toContain('Gridiron Guesser Practice X/8')
+  expect(shareText).toContain('https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=practice_mode&mode=practice')
 })
 
 test('saveDailyState and loadDailyState persist state for same date', () => {
@@ -207,4 +208,18 @@ test('App rehydrates saved daily state on render', () => {
   // The saved guess "Travis Kelce" should be rendered in the grid/page
   expect(html).toContain('Travis Kelce')
 })
+
+test('index.html includes required OpenGraph and Twitter Card meta tags', async () => {
+  const fs = await import('fs')
+  const path = await import('path')
+  const htmlPath = path.resolve(__dirname, '../index.html')
+  const htmlContent = fs.readFileSync(htmlPath, 'utf-8')
+
+  expect(htmlContent).toContain('<meta property="og:title"')
+  expect(htmlContent).toContain('<meta property="og:description"')
+  expect(htmlContent).toContain('<meta property="og:image"')
+  expect(htmlContent).toContain('<meta name="twitter:card"')
+  expect(htmlContent).toContain('<meta name="twitter:title"')
+})
+
 
