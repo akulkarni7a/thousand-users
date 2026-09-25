@@ -6,10 +6,12 @@ import {
   getPuzzleNumber,
   loadDailyState,
   saveDailyState,
+  WELCOME_STORAGE_KEY,
 } from './data/nflPlayers'
 import PlayerSearch from './components/PlayerSearch'
 import GuessGrid from './components/GuessGrid'
 import StatsModal from './components/StatsModal'
+import WelcomeModal from './components/WelcomeModal'
 import './App.css'
 
 const DEFAULT_STATS = {
@@ -33,8 +35,32 @@ export default function App() {
     return saved ? saved.gameStatus : 'IN_PROGRESS'
   }) // 'IN_PROGRESS' | 'WON' | 'LOST'
   const [isStatsOpen, setIsStatsOpen] = useState(false)
-  const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [isHelpOpen, setIsHelpOpen] = useState(() => {
+    try {
+      const seen = localStorage.getItem(WELCOME_STORAGE_KEY)
+      return !seen
+    } catch {
+      return false
+    }
+  })
   const [copiedShare, setCopiedShare] = useState(false)
+
+  const handleCloseHelp = () => {
+    try {
+      localStorage.setItem(WELCOME_STORAGE_KEY, 'true')
+    } catch {
+      // ignore storage errors
+    }
+    setIsHelpOpen(false)
+  }
+
+  const handleStartPlaying = () => {
+    handleCloseHelp()
+    setTimeout(() => {
+      const input = document.querySelector('.search-input')
+      if (input) input.focus()
+    }, 50)
+  }
 
   const [stats, setStats] = useState(() => {
     try {
@@ -211,35 +237,11 @@ export default function App() {
       </header>
 
       <main className="game-main-area">
-        {isHelpOpen && (
-          <section className="how-to-play-card">
-            <div className="card-header">
-              <h3>HOW TO PLAY</h3>
-              <button
-                type="button"
-                className="close-card-btn"
-                onClick={() => setIsHelpOpen(false)}
-              >
-                ✕
-              </button>
-            </div>
-            <p>Guess the mystery NFL player in 8 tries or fewer.</p>
-            <ul className="guide-legend-list">
-              <li>
-                <span className="legend-swatch correct">🟩 Green</span>: Exact match
-              </li>
-              <li>
-                <span className="legend-swatch close">🟨 Yellow</span>: Close match (Same conference/division, position group, age within 2, jersey # within 5, Pro Bowls within 1)
-              </li>
-              <li>
-                <span className="legend-swatch incorrect">⬛ Gray</span>: No match
-              </li>
-              <li>
-                <span className="legend-indicator">↑ / ↓</span>: Directional arrows show if mystery attribute value is higher or lower!
-              </li>
-            </ul>
-          </section>
-        )}
+        <WelcomeModal
+          isOpen={isHelpOpen}
+          onClose={handleCloseHelp}
+          onStartPlaying={handleStartPlaying}
+        />
 
         <section className="search-section">
           <PlayerSearch

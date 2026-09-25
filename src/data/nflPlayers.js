@@ -456,18 +456,47 @@ export const NFL_PLAYERS = [
   },
 ]
 
-export function filterPlayers(players, query, guessedIds = []) {
-  if (!query || query.trim() === '') return []
-  const cleanQuery = query.trim().toLowerCase()
+export const WELCOME_STORAGE_KEY = 'gridiron_guesser_welcome_seen'
+
+export function getSearchResults(players, query, guessedIds = [], category = 'All') {
+  const cleanQuery = (query || '').trim().toLowerCase()
   const guessedSet = new Set(guessedIds.map((id) => String(id)))
+
+  const matchesCategory = (player) => {
+    if (!category || category === 'All') return true
+    if (['Offense', 'Defense', 'Special Teams'].includes(category)) {
+      return player.sideOfBall === category
+    }
+    if (['AFC', 'NFC'].includes(category)) {
+      return player.conference === category
+    }
+    return player.position === category
+  }
+
+  if (cleanQuery.length === 0) {
+    return players
+      .filter((p) => !guessedSet.has(String(p.id)) && matchesCategory(p))
+      .sort((a, b) => b.proBowls - a.proBowls)
+      .slice(0, 8)
+  }
 
   return players.filter((player) => {
     if (guessedSet.has(String(player.id))) return false
+    if (!matchesCategory(player)) return false
     const nameMatch = player.name.toLowerCase().includes(cleanQuery)
     const teamMatch = player.team.toLowerCase().includes(cleanQuery)
     const abbrMatch = player.teamAbbr.toLowerCase().includes(cleanQuery)
     return nameMatch || teamMatch || abbrMatch
   })
+}
+
+export function getStarterPlayers(players, guessedIds = [], category = 'All') {
+  return getSearchResults(players, '', guessedIds, category)
+}
+
+export function filterPlayers(players, query, guessedIds = [], category = 'All') {
+  if (!query || query.trim() === '') return []
+  return getSearchResults(players, query, guessedIds, category)
 }
 
 export function comparePlayers(guess, target) {

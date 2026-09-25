@@ -1,13 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
-import { NFL_PLAYERS, filterPlayers } from '../data/nflPlayers'
+import { NFL_PLAYERS, getSearchResults } from '../data/nflPlayers'
+
+const CATEGORIES = ['All', 'QB', 'RB', 'WR', 'Offense', 'Defense', 'AFC', 'NFC']
 
 export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled = false }) {
   const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('All')
   const [isOpen, setIsOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const wrapperRef = useRef(null)
 
-  const filtered = filterPlayers(NFL_PLAYERS, query, guessedIds)
+  const filtered = getSearchResults(NFL_PLAYERS, query, guessedIds, category)
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -22,7 +25,13 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
   const handleInputChange = (e) => {
     const val = e.target.value
     setQuery(val)
-    setIsOpen(val.trim().length > 0)
+    setIsOpen(true)
+    setSelectedIndex(0)
+  }
+
+  const handleCategorySelect = (cat) => {
+    setCategory(cat)
+    setIsOpen(true)
     setSelectedIndex(0)
   }
 
@@ -52,8 +61,24 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
     }
   }
 
+  const isStarterMode = query.trim().length === 0 && category === 'All'
+
   return (
     <div className="player-search-container" ref={wrapperRef}>
+      <div className="filter-chips-bar" role="group" aria-label="Category filter chips">
+        {CATEGORIES.map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            className={`filter-chip ${category === cat ? 'active' : ''}`}
+            onClick={() => handleCategorySelect(cat)}
+            disabled={disabled}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
       <div className="search-input-wrapper">
         <input
           type="text"
@@ -61,7 +86,7 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
           placeholder={disabled ? 'Game Over' : 'Search player by name or team...'}
           value={query}
           onChange={handleInputChange}
-          onFocus={() => query.trim().length > 0 && setIsOpen(true)}
+          onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
           aria-label="Search player"
@@ -73,7 +98,7 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
             className="clear-search-btn"
             onClick={() => {
               setQuery('')
-              setIsOpen(false)
+              setSelectedIndex(0)
             }}
             aria-label="Clear search"
           >
@@ -84,6 +109,22 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
 
       {isOpen && !disabled && (
         <ul className="search-results-list" role="listbox">
+          {isStarterMode && (
+            <li className="search-section-header">
+              ⭐ Starter Recommendations (Pro Bowl Stars)
+            </li>
+          )}
+          {!isStarterMode && query.trim().length === 0 && (
+            <li className="search-section-header">
+              🔍 Recommended {category} Players
+            </li>
+          )}
+          {!isStarterMode && query.trim().length > 0 && category !== 'All' && (
+            <li className="search-section-header">
+              🔍 Matching "{query}" in {category}
+            </li>
+          )}
+
           {filtered.length > 0 ? (
             filtered.map((player, idx) => (
               <li
@@ -95,7 +136,9 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
                 onMouseEnter={() => setSelectedIndex(idx)}
               >
                 <div className="player-info-main">
-                  <span className="player-name-text">{player.name}</span>
+                  <span className="player-name-text">
+                    {player.name} {player.proBowls > 0 && <span className="pro-bowl-badge">⭐ {player.proBowls}x PB</span>}
+                  </span>
                   <span className="player-team-tag">{player.teamAbbr} • #{player.number}</span>
                 </div>
                 <div className="player-sub-info">
