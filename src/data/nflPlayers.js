@@ -456,6 +456,12 @@ export const NFL_PLAYERS = [
   },
 ]
 
+NFL_PLAYERS.forEach((player) => {
+  player.searchName = player.name.toLowerCase()
+  player.searchTeam = player.team.toLowerCase()
+  player.searchAbbr = player.teamAbbr.toLowerCase()
+})
+
 export const WELCOME_STORAGE_KEY = 'gridiron_guesser_welcome_seen'
 
 export function getSearchResults(players, query, guessedIds = [], category = 'All') {
@@ -483,10 +489,10 @@ export function getSearchResults(players, query, guessedIds = [], category = 'Al
   return players.filter((player) => {
     if (guessedSet.has(String(player.id))) return false
     if (!matchesCategory(player)) return false
-    const nameMatch = player.name.toLowerCase().includes(cleanQuery)
-    const teamMatch = player.team.toLowerCase().includes(cleanQuery)
-    const abbrMatch = player.teamAbbr.toLowerCase().includes(cleanQuery)
-    return nameMatch || teamMatch || abbrMatch
+    const searchName = player.searchName ?? player.name.toLowerCase()
+    const searchTeam = player.searchTeam ?? player.team.toLowerCase()
+    const searchAbbr = player.searchAbbr ?? player.teamAbbr.toLowerCase()
+    return searchName.includes(cleanQuery) || searchTeam.includes(cleanQuery) || searchAbbr.includes(cleanQuery)
   })
 }
 

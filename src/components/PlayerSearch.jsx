@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { NFL_PLAYERS, getSearchResults } from '../data/nflPlayers'
 
 const CATEGORIES = ['All', 'QB', 'RB', 'WR', 'Offense', 'Defense', 'AFC', 'NFC']
@@ -10,7 +10,10 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
   const [selectedIndex, setSelectedIndex] = useState(0)
   const wrapperRef = useRef(null)
 
-  const filtered = getSearchResults(NFL_PLAYERS, query, guessedIds, category)
+  const filtered = useMemo(
+    () => getSearchResults(NFL_PLAYERS, query, guessedIds, category),
+    [query, category, guessedIds]
+  )
 
   useEffect(() => {
     function handleClickOutside(event) {
