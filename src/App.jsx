@@ -8,49 +8,35 @@ import {
   saveDailyState,
   WELCOME_STORAGE_KEY,
 } from './data/nflPlayers'
+import {
+  asyncSetItem,
+  loadInitialAppState,
+  STATS_STORAGE_KEY,
+} from './data/asyncStorage'
 import PlayerSearch from './components/PlayerSearch'
 import GuessGrid from './components/GuessGrid'
 import StatsModal from './components/StatsModal'
 import WelcomeModal from './components/WelcomeModal'
 import './App.css'
 
-const DEFAULT_STATS = {
-  played: 0,
-  won: 0,
-  currentStreak: 0,
-  maxStreak: 0,
-  guessDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 },
-  lastPlayedDate: null,
-}
-
 export default function App() {
+  const [initialData] = useState(() => loadInitialAppState())
+
   const [gameMode, setGameMode] = useState('daily') // 'daily' | 'practice'
   const [targetPlayer, setTargetPlayer] = useState(() => getDailyPlayer())
-  const [guesses, setGuesses] = useState(() => {
-    const saved = loadDailyState()
-    return saved ? saved.guesses : []
-  })
-  const [gameStatus, setGameStatus] = useState(() => {
-    const saved = loadDailyState()
-    return saved ? saved.gameStatus : 'IN_PROGRESS'
-  }) // 'IN_PROGRESS' | 'WON' | 'LOST'
+  const [guesses, setGuesses] = useState(() =>
+    initialData.dailyState ? initialData.dailyState.guesses : []
+  )
+  const [gameStatus, setGameStatus] = useState(() =>
+    initialData.dailyState ? initialData.dailyState.gameStatus : 'IN_PROGRESS'
+  ) // 'IN_PROGRESS' | 'WON' | 'LOST'
   const [isStatsOpen, setIsStatsOpen] = useState(false)
-  const [isHelpOpen, setIsHelpOpen] = useState(() => {
-    try {
-      const seen = localStorage.getItem(WELCOME_STORAGE_KEY)
-      return !seen
-    } catch {
-      return false
-    }
-  })
+  const [isHelpOpen, setIsHelpOpen] = useState(() => !initialData.welcomeSeen)
   const [copiedShare, setCopiedShare] = useState(false)
+  const [stats, setStats] = useState(() => initialData.stats)
 
   const handleCloseHelp = () => {
-    try {
-      localStorage.setItem(WELCOME_STORAGE_KEY, 'true')
-    } catch {
-      // ignore storage errors
-    }
+    asyncSetItem(WELCOME_STORAGE_KEY, 'true')
     setIsHelpOpen(false)
   }
 
@@ -62,22 +48,9 @@ export default function App() {
     }, 50)
   }
 
-  const [stats, setStats] = useState(() => {
-    try {
-      const saved = localStorage.getItem('gridiron_guesser_stats')
-      return saved ? { ...DEFAULT_STATS, ...JSON.parse(saved) } : DEFAULT_STATS
-    } catch {
-      return DEFAULT_STATS
-    }
-  })
-
-  // Save stats to localStorage on update
+  // Save stats to localStorage asynchronously on update
   useEffect(() => {
-    try {
-      localStorage.setItem('gridiron_guesser_stats', JSON.stringify(stats))
-    } catch {
-      // ignore storage errors
-    }
+    asyncSetItem(STATS_STORAGE_KEY, stats)
   }, [stats])
 
   // Save daily state to localStorage on update when in daily mode

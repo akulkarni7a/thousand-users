@@ -456,7 +456,15 @@ export const NFL_PLAYERS = [
   },
 ]
 
-export const WELCOME_STORAGE_KEY = 'gridiron_guesser_welcome_seen'
+import {
+  WELCOME_STORAGE_KEY,
+  DAILY_STORAGE_KEY,
+  asyncSetItem,
+  asyncRemoveItem,
+  getItemSync,
+} from './asyncStorage'
+
+export { WELCOME_STORAGE_KEY, DAILY_STORAGE_KEY }
 
 export function getSearchResults(players, query, guessedIds = [], category = 'All') {
   const cleanQuery = (query || '').trim().toLowerCase()
@@ -583,14 +591,12 @@ export function comparePlayers(guess, target) {
   }
 }
 
-export const DAILY_STORAGE_KEY = 'gridiron_guesser_daily_state'
-
 export function loadDailyState(dateStr) {
   const todayStr = dateStr || new Date().toISOString().slice(0, 10)
   try {
-    const saved = localStorage.getItem(DAILY_STORAGE_KEY)
+    const saved = getItemSync(DAILY_STORAGE_KEY)
     if (!saved) return null
-    const parsed = JSON.parse(saved)
+    const parsed = typeof saved === 'string' ? JSON.parse(saved) : saved
     if (parsed && typeof parsed === 'object' && parsed.date === todayStr) {
       return {
         date: parsed.date,
@@ -601,7 +607,12 @@ export function loadDailyState(dateStr) {
           : 'IN_PROGRESS',
       }
     } else {
-      localStorage.removeItem(DAILY_STORAGE_KEY)
+      asyncRemoveItem(DAILY_STORAGE_KEY)
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.removeItem(DAILY_STORAGE_KEY)
+      } catch {
+        // ignore
+      }
     }
   } catch {
     // ignore storage errors
@@ -612,7 +623,7 @@ export function loadDailyState(dateStr) {
 export function saveDailyState(state) {
   try {
     if (!state) return
-    localStorage.setItem(DAILY_STORAGE_KEY, JSON.stringify(state))
+    asyncSetItem(DAILY_STORAGE_KEY, state)
   } catch {
     // ignore storage errors
   }

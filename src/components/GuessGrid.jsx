@@ -1,8 +1,18 @@
+import { useMemo } from 'react'
 import GuessTile from './GuessTile'
 import { comparePlayers } from '../data/nflPlayers'
+import { getMemoizedComparison } from '../data/asyncStorage'
 
 export default function GuessGrid({ guesses = [], targetPlayer, maxGuesses = 8 }) {
   const emptyRowsCount = Math.max(0, maxGuesses - guesses.length)
+
+  const rows = useMemo(() => {
+    if (!targetPlayer) return []
+    return guesses.map((guess) => {
+      const comp = getMemoizedComparison(guess, targetPlayer, comparePlayers)
+      return { guess, comp }
+    })
+  }, [guesses, targetPlayer])
 
   return (
     <div className="guess-grid-container">
@@ -19,8 +29,7 @@ export default function GuessGrid({ guesses = [], targetPlayer, maxGuesses = 8 }
       </div>
 
       <div className="grid-body">
-        {guesses.map((guess, rowIndex) => {
-          const comp = comparePlayers(guess, targetPlayer)
+        {rows.map(({ guess, comp }, rowIndex) => {
           if (!comp) return null
 
           return (
