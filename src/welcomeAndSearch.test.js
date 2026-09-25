@@ -102,3 +102,63 @@ test('PlayerSearch component renders filter chips', () => {
   expect(html).toContain('AFC')
   expect(html).toContain('NFC')
 })
+
+test('NFL_PLAYERS dataset contains pre-computed lowercased search properties at module load', () => {
+  expect(NFL_PLAYERS.length).toBeGreaterThan(0)
+  NFL_PLAYERS.forEach((player) => {
+    expect(player.searchName).toBe(player.name.toLowerCase())
+    expect(player.searchTeam).toBe(player.team.toLowerCase())
+    expect(player.searchAbbr).toBe(player.teamAbbr.toLowerCase())
+  })
+})
+
+test('getSearchResults uses pre-computed search fields during filtering', () => {
+  const mahomes = NFL_PLAYERS.find((p) => p.name === 'Patrick Mahomes')
+  expect(mahomes).toBeDefined()
+
+  // Verify getSearchResults matches using lowercased pre-computed attributes
+  const results = getSearchResults(NFL_PLAYERS, 'mahomes')
+  expect(results.some((p) => p.id === mahomes.id)).toBe(true)
+
+  // Test custom player object with pre-computed search fields
+  const mockPlayers = [
+    {
+      id: 'mock1',
+      name: 'Custom Player',
+      team: 'Custom Team',
+      teamAbbr: 'CT',
+      searchName: 'custom player',
+      searchTeam: 'custom team',
+      searchAbbr: 'ct',
+      proBowls: 0,
+    },
+  ]
+  const mockResults = getSearchResults(mockPlayers, 'custom')
+  expect(mockResults).toHaveLength(1)
+  expect(mockResults[0].id).toBe('mock1')
+})
+
+test('getSearchResults uses pre-computed search fields without calling toLowerCase during filter passes', () => {
+  let toLowerCaseCalled = false
+  const mockPlayer = {
+    id: 'test-1',
+    get name() {
+      return {
+        toLowerCase() {
+          toLowerCaseCalled = true
+          return 'test name'
+        },
+      }
+    },
+    team: 'Test Team',
+    teamAbbr: 'TT',
+    searchName: 'test name',
+    searchTeam: 'test team',
+    searchAbbr: 'tt',
+    proBowls: 0,
+  }
+
+  const results = getSearchResults([mockPlayer], 'test')
+  expect(results).toHaveLength(1)
+  expect(toLowerCaseCalled).toBe(false)
+})
