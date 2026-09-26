@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { generateShareCard, getPuzzleNumber } from '../data/nflPlayers'
+import { getPuzzleNumber, shareGameResults } from '../data/nflPlayers'
 
 export default function StatsModal({
   isOpen,
@@ -19,40 +19,20 @@ export default function StatsModal({
   const puzzleNum = getPuzzleNumber()
 
   const handleShare = async () => {
-    const text = generateShareCard(guesses, targetPlayer, gameMode, puzzleNum, isWin)
-    const title = gameMode === 'daily' ? `Gridiron Guesser #${puzzleNum}` : 'Gridiron Guesser Practice'
-    const campaign = gameMode === 'daily' ? 'daily_challenge' : 'practice_mode'
-    let url = `https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=${campaign}&mode=${gameMode}`
-    if (gameMode === 'daily') {
-      url += `&puzzle=${puzzleNum}`
-    }
-
-    const copyToClipboard = () => {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => {
-          setCopied(true)
-          setTimeout(() => setCopied(false), 2500)
-        }).catch(() => {
-          setCopied(false)
-        })
-      }
-    }
-
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({
-          title,
-          text,
-          url,
-        })
-      } catch (err) {
-        if (err && err.name !== 'AbortError') {
-          copyToClipboard()
-        }
-      }
-    } else {
-      copyToClipboard()
-    }
+    await shareGameResults({
+      guesses,
+      targetPlayer,
+      gameMode,
+      puzzleNum,
+      isWin,
+      onCopySuccess: () => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2500)
+      },
+      onCopyError: () => {
+        setCopied(false)
+      },
+    })
   }
 
   const winPercentage = stats.played > 0 ? Math.round((stats.won / stats.played) * 100) : 0

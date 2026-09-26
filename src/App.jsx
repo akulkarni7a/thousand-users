@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import {
   getDailyPlayer,
   getRandomPlayer,
-  generateShareCard,
   getPuzzleNumber,
   loadDailyState,
   saveDailyState,
+  shareGameResults,
   WELCOME_STORAGE_KEY,
 } from './data/nflPlayers'
 import PlayerSearch from './components/PlayerSearch'
@@ -176,40 +176,20 @@ export default function App() {
   const handleQuickShare = async () => {
     const puzzleNum = getPuzzleNumber()
     const isWin = gameStatus === 'WON'
-    const shareText = generateShareCard(guesses, targetPlayer, gameMode, puzzleNum, isWin)
-    const title = gameMode === 'daily' ? `Gridiron Guesser #${puzzleNum}` : 'Gridiron Guesser Practice'
-    const campaign = gameMode === 'daily' ? 'daily_challenge' : 'practice_mode'
-    let shareUrl = `https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=${campaign}&mode=${gameMode}`
-    if (gameMode === 'daily') {
-      shareUrl += `&puzzle=${puzzleNum}`
-    }
-
-    const copyToClipboard = () => {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(shareText).then(() => {
-          setCopiedShare(true)
-          setTimeout(() => setCopiedShare(false), 2500)
-        }).catch(() => {
-          setCopiedShare(false)
-        })
-      }
-    }
-
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({
-          title,
-          text: shareText,
-          url: shareUrl,
-        })
-      } catch (err) {
-        if (err && err.name !== 'AbortError') {
-          copyToClipboard()
-        }
-      }
-    } else {
-      copyToClipboard()
-    }
+    await shareGameResults({
+      guesses,
+      targetPlayer,
+      gameMode,
+      puzzleNum,
+      isWin,
+      onCopySuccess: () => {
+        setCopiedShare(true)
+        setTimeout(() => setCopiedShare(false), 2500)
+      },
+      onCopyError: () => {
+        setCopiedShare(false)
+      },
+    })
   }
 
   const puzzleNum = getPuzzleNumber()

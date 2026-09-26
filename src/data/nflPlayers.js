@@ -687,3 +687,55 @@ export function generateShareCard(guesses, targetPlayer, gameMode = 'daily', puz
 
   return `${title} ${guessCountText}\n\n${rows.join('\n')}\n\n${shareUrl}`
 }
+
+export async function shareGameResults({
+  guesses,
+  targetPlayer,
+  gameMode = 'daily',
+  puzzleNum = 1,
+  isWin = false,
+  onCopySuccess = () => {},
+  onCopyError = () => {},
+}) {
+  const shareText = generateShareCard(guesses, targetPlayer, gameMode, puzzleNum, isWin)
+  const title = gameMode === 'daily' ? `Gridiron Guesser #${puzzleNum}` : 'Gridiron Guesser Practice'
+  const campaign = gameMode === 'daily' ? 'daily_challenge' : 'practice_mode'
+  let shareUrl = `https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=${campaign}&mode=${gameMode}`
+  if (gameMode === 'daily') {
+    shareUrl += `&puzzle=${puzzleNum}`
+  }
+
+  const copyToClipboard = async () => {
+    try {
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === 'function'
+      ) {
+        await navigator.clipboard.writeText(shareText)
+        onCopySuccess()
+      } else {
+        onCopyError()
+      }
+    } catch (err) {
+      onCopyError(err)
+    }
+  }
+
+  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    try {
+      await navigator.share({
+        title,
+        text: shareText,
+        url: shareUrl,
+      })
+    } catch (err) {
+      if (err && err.name !== 'AbortError') {
+        await copyToClipboard()
+      }
+    }
+  } else {
+    await copyToClipboard()
+  }
+}
+
