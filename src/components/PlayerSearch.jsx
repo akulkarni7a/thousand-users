@@ -4,15 +4,24 @@ import { NFL_PLAYERS, getSearchResults } from '../data/nflPlayers'
 const CATEGORIES = ['All', 'QB', 'RB', 'WR', 'Offense', 'Defense', 'AFC', 'NFC']
 
 export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled = false }) {
-  const [query, setQuery] = useState('')
+  const [inputValue, setInputValue] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [category, setCategory] = useState('All')
   const [isOpen, setIsOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const wrapperRef = useRef(null)
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(inputValue)
+      setSelectedIndex(0)
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [inputValue])
+
   const filtered = useMemo(
-    () => getSearchResults(NFL_PLAYERS, query, guessedIds, category),
-    [query, category, guessedIds]
+    () => getSearchResults(NFL_PLAYERS, debouncedQuery, guessedIds, category).slice(0, 10),
+    [debouncedQuery, category, guessedIds]
   )
 
   useEffect(() => {
@@ -27,13 +36,13 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
 
   const handleInputChange = (e) => {
     const val = e.target.value
-    setQuery(val)
+    setInputValue(val)
     setIsOpen(true)
-    setSelectedIndex(0)
   }
 
   const handleCategorySelect = (cat) => {
     setCategory(cat)
+    setDebouncedQuery(inputValue)
     setIsOpen(true)
     setSelectedIndex(0)
   }
@@ -41,7 +50,8 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
   const handleSelect = (player) => {
     if (disabled) return
     onSelectPlayer(player)
-    setQuery('')
+    setInputValue('')
+    setDebouncedQuery('')
     setIsOpen(false)
   }
 
@@ -64,7 +74,7 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
     }
   }
 
-  const isStarterMode = query.trim().length === 0 && category === 'All'
+  const isStarterMode = debouncedQuery.trim().length === 0 && category === 'All'
 
   return (
     <div className="player-search-container" ref={wrapperRef}>
@@ -87,7 +97,7 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
           type="text"
           className="search-input"
           placeholder={disabled ? 'Game Over' : 'Search player by name or team...'}
-          value={query}
+          value={inputValue}
           onChange={handleInputChange}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
@@ -95,12 +105,13 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
           aria-label="Search player"
           autoComplete="off"
         />
-        {query && !disabled && (
+        {inputValue && !disabled && (
           <button
             type="button"
             className="clear-search-btn"
             onClick={() => {
-              setQuery('')
+              setInputValue('')
+              setDebouncedQuery('')
               setSelectedIndex(0)
             }}
             aria-label="Clear search"
@@ -117,14 +128,14 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
               ⭐ Starter Recommendations (Pro Bowl Stars)
             </li>
           )}
-          {!isStarterMode && query.trim().length === 0 && (
+          {!isStarterMode && debouncedQuery.trim().length === 0 && (
             <li className="search-section-header">
               🔍 Recommended {category} Players
             </li>
           )}
-          {!isStarterMode && query.trim().length > 0 && category !== 'All' && (
+          {!isStarterMode && debouncedQuery.trim().length > 0 && category !== 'All' && (
             <li className="search-section-header">
-              🔍 Matching "{query}" in {category}
+              🔍 Matching "{debouncedQuery}" in {category}
             </li>
           )}
 

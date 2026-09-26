@@ -493,7 +493,7 @@ export function getSearchResults(players, query, guessedIds = [], category = 'Al
     const searchTeam = player.searchTeam ?? player.team.toLowerCase()
     const searchAbbr = player.searchAbbr ?? player.teamAbbr.toLowerCase()
     return searchName.includes(cleanQuery) || searchTeam.includes(cleanQuery) || searchAbbr.includes(cleanQuery)
-  })
+  }).slice(0, 10)
 }
 
 export function getStarterPlayers(players, guessedIds = [], category = 'All') {
