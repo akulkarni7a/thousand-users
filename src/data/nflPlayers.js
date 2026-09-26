@@ -1,3 +1,9 @@
+import {
+  scheduleStorageWrite,
+  getStorageItem,
+  removeStorageItem,
+} from '../utils/asyncStorage.js'
+
 export const NFL_PLAYERS = [
   {
     id: '1',
@@ -594,9 +600,9 @@ export const DAILY_STORAGE_KEY = 'gridiron_guesser_daily_state'
 export function loadDailyState(dateStr) {
   const todayStr = dateStr || new Date().toISOString().slice(0, 10)
   try {
-    const saved = localStorage.getItem(DAILY_STORAGE_KEY)
+    const saved = getStorageItem(DAILY_STORAGE_KEY)
     if (!saved) return null
-    const parsed = JSON.parse(saved)
+    const parsed = typeof saved === 'string' ? JSON.parse(saved) : saved
     if (parsed && typeof parsed === 'object' && parsed.date === todayStr) {
       return {
         date: parsed.date,
@@ -607,7 +613,7 @@ export function loadDailyState(dateStr) {
           : 'IN_PROGRESS',
       }
     } else {
-      localStorage.removeItem(DAILY_STORAGE_KEY)
+      removeStorageItem(DAILY_STORAGE_KEY)
     }
   } catch {
     // ignore storage errors
@@ -618,7 +624,7 @@ export function loadDailyState(dateStr) {
 export function saveDailyState(state) {
   try {
     if (!state) return
-    localStorage.setItem(DAILY_STORAGE_KEY, JSON.stringify(state))
+    scheduleStorageWrite(DAILY_STORAGE_KEY, state)
   } catch {
     // ignore storage errors
   }

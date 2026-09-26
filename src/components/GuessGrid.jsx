@@ -1,8 +1,55 @@
+import { memo, useMemo } from 'react'
 import GuessTile from './GuessTile'
 import { comparePlayers } from '../data/nflPlayers'
 
-export default function GuessGrid({ guesses = [], targetPlayer, maxGuesses = 8 }) {
+const GuessRow = memo(function GuessRow({ guess, targetPlayer }) {
+  const comp = useMemo(() => comparePlayers(guess, targetPlayer), [guess, targetPlayer])
+  if (!comp) return null
+
+  return (
+    <div className="grid-row guess-row">
+      <div className="grid-cell player-cell">
+        <span className="player-name">{guess.name}</span>
+      </div>
+      <GuessTile value={comp.team.value} match={comp.team.match} colIndex={1} />
+      <GuessTile value={comp.conference.value} match={comp.conference.match} colIndex={2} />
+      <GuessTile value={comp.division.value} match={comp.division.match} colIndex={3} />
+      <GuessTile value={comp.position.value} match={comp.position.match} colIndex={4} />
+      <GuessTile value={comp.sideOfBall.value} match={comp.sideOfBall.match} colIndex={5} />
+      <GuessTile
+        value={comp.age.value}
+        match={comp.age.match}
+        direction={comp.age.direction}
+        colIndex={6}
+      />
+      <GuessTile
+        value={`#${comp.number.value}`}
+        match={comp.number.match}
+        direction={comp.number.direction}
+        colIndex={7}
+      />
+      <GuessTile
+        value={comp.proBowls.value}
+        match={comp.proBowls.match}
+        direction={comp.proBowls.direction}
+        colIndex={8}
+      />
+    </div>
+  )
+})
+
+function GuessGrid({ guesses = [], targetPlayer, maxGuesses = 8 }) {
   const emptyRowsCount = Math.max(0, maxGuesses - guesses.length)
+
+  const rows = useMemo(() => {
+    return guesses.map((guess, rowIndex) => (
+      <GuessRow
+        key={guess.id || rowIndex}
+        guess={guess}
+        targetPlayer={targetPlayer}
+      />
+    ))
+  }, [guesses, targetPlayer])
 
   return (
     <div className="guess-grid-container">
@@ -19,41 +66,7 @@ export default function GuessGrid({ guesses = [], targetPlayer, maxGuesses = 8 }
       </div>
 
       <div className="grid-body">
-        {guesses.map((guess, rowIndex) => {
-          const comp = comparePlayers(guess, targetPlayer)
-          if (!comp) return null
-
-          return (
-            <div className="grid-row guess-row" key={guess.id || rowIndex}>
-              <div className="grid-cell player-cell">
-                <span className="player-name">{guess.name}</span>
-              </div>
-              <GuessTile value={comp.team.value} match={comp.team.match} colIndex={1} />
-              <GuessTile value={comp.conference.value} match={comp.conference.match} colIndex={2} />
-              <GuessTile value={comp.division.value} match={comp.division.match} colIndex={3} />
-              <GuessTile value={comp.position.value} match={comp.position.match} colIndex={4} />
-              <GuessTile value={comp.sideOfBall.value} match={comp.sideOfBall.match} colIndex={5} />
-              <GuessTile
-                value={comp.age.value}
-                match={comp.age.match}
-                direction={comp.age.direction}
-                colIndex={6}
-              />
-              <GuessTile
-                value={`#${comp.number.value}`}
-                match={comp.number.match}
-                direction={comp.number.direction}
-                colIndex={7}
-              />
-              <GuessTile
-                value={comp.proBowls.value}
-                match={comp.proBowls.match}
-                direction={comp.proBowls.direction}
-                colIndex={8}
-              />
-            </div>
-          )
-        })}
+        {rows}
 
         {Array.from({ length: emptyRowsCount }).map((_, idx) => (
           <div className="grid-row empty-row" key={`empty-${idx}`}>
@@ -72,3 +85,5 @@ export default function GuessGrid({ guesses = [], targetPlayer, maxGuesses = 8 }
     </div>
   )
 }
+
+export default memo(GuessGrid)
