@@ -9,6 +9,7 @@ import {
   WELCOME_STORAGE_KEY,
 } from './data/nflPlayers'
 import { scheduleStorageWrite, getStorageItem } from './utils/asyncStorage'
+import { parseDeepLink, cleanUrlParameters } from './utils/deepLinkRouter'
 import PlayerSearch from './components/PlayerSearch'
 import GuessGrid from './components/GuessGrid'
 import StatsModal from './components/StatsModal'
@@ -25,8 +26,8 @@ const DEFAULT_STATS = {
 }
 
 function loadInitialAppState() {
-  const todayStr = new Date().toISOString().slice(0, 10)
-  const dailyState = loadDailyState(todayStr)
+  const routeState = parseDeepLink()
+  cleanUrlParameters()
 
   let stats = DEFAULT_STATS
   try {
@@ -50,7 +51,7 @@ function loadInitialAppState() {
   }
 
   return {
-    dailyState,
+    routeState,
     stats,
     isHelpOpen,
   }
@@ -58,14 +59,11 @@ function loadInitialAppState() {
 
 export default function App() {
   const [initialAppState] = useState(() => loadInitialAppState())
-  const [gameMode, setGameMode] = useState('daily') // 'daily' | 'practice'
-  const [targetPlayer, setTargetPlayer] = useState(() => getDailyPlayer())
-  const [guesses, setGuesses] = useState(() =>
-    initialAppState.dailyState ? initialAppState.dailyState.guesses : []
-  )
-  const [gameStatus, setGameStatus] = useState(() =>
-    initialAppState.dailyState ? initialAppState.dailyState.gameStatus : 'IN_PROGRESS'
-  ) // 'IN_PROGRESS' | 'WON' | 'LOST'
+  const [gameMode, setGameMode] = useState(() => initialAppState.routeState.gameMode) // 'daily' | 'practice'
+  const [targetPlayer, setTargetPlayer] = useState(() => initialAppState.routeState.targetPlayer)
+  const [dailyDate, setDailyDate] = useState(() => initialAppState.routeState.targetDate)
+  const [guesses, setGuesses] = useState(() => initialAppState.routeState.guesses)
+  const [gameStatus, setGameStatus] = useState(() => initialAppState.routeState.gameStatus) // 'IN_PROGRESS' | 'WON' | 'LOST'
   const [isStatsOpen, setIsStatsOpen] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(() => initialAppState.isHelpOpen)
   const [copiedShare, setCopiedShare] = useState(false)
@@ -92,22 +90,23 @@ export default function App() {
   // Save daily state to localStorage asynchronously on update when in daily mode
   useEffect(() => {
     if (gameMode === 'daily') {
-      const todayStr = new Date().toISOString().slice(0, 10)
-      const pNum = getPuzzleNumber(todayStr)
+      const targetDate = dailyDate || new Date().toISOString().slice(0, 10)
+      const pNum = getPuzzleNumber(targetDate)
       saveDailyState({
-        date: todayStr,
+        date: targetDate,
         puzzleNum: pNum,
         guesses,
         gameStatus,
       })
     }
-  }, [gameMode, guesses, gameStatus])
+  }, [gameMode, dailyDate, guesses, gameStatus])
 
   // Handle mode switch or initial game set up
   const initGame = (mode) => {
     setGameMode(mode)
     if (mode === 'daily') {
       const todayStr = new Date().toISOString().slice(0, 10)
+      setDailyDate(todayStr)
       setTargetPlayer(getDailyPlayer(todayStr))
       const saved = loadDailyState(todayStr)
       if (saved) {
@@ -171,10 +170,10 @@ export default function App() {
     }
 
     if (gameMode === 'daily') {
-      const todayStr = new Date().toISOString().slice(0, 10)
-      const pNum = getPuzzleNumber(todayStr)
+      const targetDate = dailyDate || new Date().toISOString().slice(0, 10)
+      const pNum = getPuzzleNumber(targetDate)
       saveDailyState({
-        date: todayStr,
+        date: targetDate,
         puzzleNum: pNum,
         guesses: newGuesses,
         gameStatus: status,
@@ -183,13 +182,13 @@ export default function App() {
   }
 
   const handleQuickShare = async () => {
-    const puzzleNum = getPuzzleNumber()
+    const currentPuzzleNum = getPuzzleNumber(dailyDate)
     const isWin = gameStatus === 'WON'
     await shareGameResults({
       guesses,
       targetPlayer,
       gameMode,
-      puzzleNum,
+      puzzleNum: currentPuzzleNum,
       isWin,
       onCopySuccess: () => {
         setCopiedShare(true)
@@ -201,7 +200,7 @@ export default function App() {
     })
   }
 
-  const puzzleNum = getPuzzleNumber()
+  const puzzleNum = getPuzzleNumber(dailyDate)
   const guessedIds = guesses.map((g) => g.id)
 
   return (
