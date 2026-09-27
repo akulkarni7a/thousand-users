@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getPuzzleNumber, shareGameResults } from '../data/nflPlayers'
+import CountdownTimer from './CountdownTimer'
 
 export default function StatsModal({
   isOpen,
@@ -11,6 +12,7 @@ export default function StatsModal({
   gameMode,
   stats,
   onPlayAgain,
+  onRefreshDaily,
 }) {
   const [copied, setCopied] = useState(false)
 
@@ -101,6 +103,12 @@ export default function StatsModal({
             )
           })}
         </div>
+
+        {gameMode === 'daily' && (
+          <div className="countdown-section">
+            <CountdownTimer onRefresh={onRefreshDaily || onPlayAgain || (() => window.location.reload())} />
+          </div>
+        )}
 
         {isGameOver && (
           <div className="modal-actions">

@@ -8,53 +8,14 @@ import {
   shareGameResults,
   WELCOME_STORAGE_KEY,
 } from './data/nflPlayers'
-import { scheduleStorageWrite, getStorageItem } from './utils/asyncStorage'
+import { getUTCTodayString, getUTCDayDifference } from './utils/dateUtils'
+import { scheduleStorageWrite } from './utils/asyncStorage'
+import { loadInitialAppState } from './utils/appState'
 import PlayerSearch from './components/PlayerSearch'
 import GuessGrid from './components/GuessGrid'
 import StatsModal from './components/StatsModal'
 import WelcomeModal from './components/WelcomeModal'
 import './App.css'
-
-const DEFAULT_STATS = {
-  played: 0,
-  won: 0,
-  currentStreak: 0,
-  maxStreak: 0,
-  guessDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 },
-  lastPlayedDate: null,
-}
-
-function loadInitialAppState() {
-  const todayStr = new Date().toISOString().slice(0, 10)
-  const dailyState = loadDailyState(todayStr)
-
-  let stats = DEFAULT_STATS
-  try {
-    const savedStats = getStorageItem('gridiron_guesser_stats')
-    if (savedStats) {
-      const parsed = typeof savedStats === 'string' ? JSON.parse(savedStats) : savedStats
-      stats = { ...DEFAULT_STATS, ...parsed }
-    }
-  } catch {
-    // ignore storage errors
-  }
-
-  let isHelpOpen = true
-  try {
-    const seen = getStorageItem(WELCOME_STORAGE_KEY)
-    if (seen) {
-      isHelpOpen = false
-    }
-  } catch {
-    // ignore storage errors
-  }
-
-  return {
-    dailyState,
-    stats,
-    isHelpOpen,
-  }
-}
 
 export default function App() {
   const [initialAppState] = useState(() => loadInitialAppState())
@@ -92,7 +53,7 @@ export default function App() {
   // Save daily state to localStorage asynchronously on update when in daily mode
   useEffect(() => {
     if (gameMode === 'daily') {
-      const todayStr = new Date().toISOString().slice(0, 10)
+      const todayStr = getUTCTodayString()
       const pNum = getPuzzleNumber(todayStr)
       saveDailyState({
         date: todayStr,
@@ -107,7 +68,7 @@ export default function App() {
   const initGame = (mode) => {
     setGameMode(mode)
     if (mode === 'daily') {
-      const todayStr = new Date().toISOString().slice(0, 10)
+      const todayStr = getUTCTodayString()
       setTargetPlayer(getDailyPlayer(todayStr))
       const saved = loadDailyState(todayStr)
       if (saved) {
@@ -140,16 +101,27 @@ export default function App() {
 
       // Update statistics
       setStats((prev) => {
-        const todayStr = new Date().toISOString().slice(0, 10)
-        const isNewDay = prev.lastPlayedDate !== todayStr
+        const todayStr = getUTCTodayString()
         const newPlayed = prev.played + 1
         const newWon = isWin ? prev.won + 1 : prev.won
         
         let newStreak = prev.currentStreak
-        if (isWin) {
-          newStreak = isNewDay || gameMode === 'practice' ? prev.currentStreak + 1 : prev.currentStreak
-        } else {
-          newStreak = 0
+        let newLastPlayedDate = prev.lastPlayedDate
+
+        if (gameMode === 'daily') {
+          newLastPlayedDate = todayStr
+          if (isWin) {
+            const diff = getUTCDayDifference(todayStr, prev.lastPlayedDate)
+            if (diff === 1) {
+              newStreak = prev.currentStreak + 1
+            } else if (diff === 0) {
+              newStreak = prev.currentStreak
+            } else {
+              newStreak = 1
+            }
+          } else {
+            newStreak = 0
+          }
         }
 
         const newMaxStreak = Math.max(prev.maxStreak, newStreak)
@@ -165,13 +137,13 @@ export default function App() {
           currentStreak: newStreak,
           maxStreak: newMaxStreak,
           guessDistribution: newDist,
-          lastPlayedDate: todayStr,
+          lastPlayedDate: newLastPlayedDate,
         }
       })
     }
 
     if (gameMode === 'daily') {
-      const todayStr = new Date().toISOString().slice(0, 10)
+      const todayStr = getUTCTodayString()
       const pNum = getPuzzleNumber(todayStr)
       saveDailyState({
         date: todayStr,
@@ -316,6 +288,10 @@ export default function App() {
         onPlayAgain={() => {
           setIsStatsOpen(false)
           initGame(gameMode === 'daily' ? 'practice' : 'practice')
+        }}
+        onRefreshDaily={() => {
+          setIsStatsOpen(false)
+          initGame('daily')
         }}
       />
     </div>
