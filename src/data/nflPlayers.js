@@ -655,6 +655,14 @@ export function getPuzzleNumber(dateStr) {
   return diffDays + 1
 }
 
+export function getDateFromPuzzleNumber(puzzleNum) {
+  const num = typeof puzzleNum === 'number' ? puzzleNum : parseInt(puzzleNum, 10)
+  if (isNaN(num) || num < 1) return null
+  const startDate = new Date('2026-01-01T00:00:00Z')
+  const targetDate = new Date(startDate.getTime() + (num - 1) * 24 * 60 * 60 * 1000)
+  return targetDate.toISOString().slice(0, 10)
+}
+
 export function generateShareCard(guesses, targetPlayer, gameMode = 'daily', puzzleNum = 1, isWin = false) {
   const guessCountText = isWin ? `${guesses.length}/8` : 'X/8'
   const title = gameMode === 'daily' ? `Gridiron Guesser #${puzzleNum}` : `Gridiron Guesser Practice`
