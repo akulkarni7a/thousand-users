@@ -2,6 +2,15 @@
 const pendingWrites = new Map()
 const timers = new Map()
 
+function cancelTimer(timerEntry) {
+  if (!timerEntry) return
+  if (typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function' && timerEntry?.idleId) {
+    window.cancelIdleCallback(timerEntry.idleId)
+  } else {
+    clearTimeout(timerEntry)
+  }
+}
+
 function ensureLocalStorageIntercepted() {
   if (typeof globalThis === 'undefined' || !globalThis.localStorage) return
   const ls = globalThis.localStorage
@@ -25,12 +34,7 @@ function ensureLocalStorageIntercepted() {
     ls.removeItem = function (key) {
       pendingWrites.delete(key)
       if (timers.has(key)) {
-        const existing = timers.get(key)
-        if (typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function' && existing?.idleId) {
-          window.cancelIdleCallback(existing.idleId)
-        } else {
-          clearTimeout(existing)
-        }
+        cancelTimer(timers.get(key))
         timers.delete(key)
       }
       if (origRemove) origRemove(key)
@@ -40,7 +44,7 @@ function ensureLocalStorageIntercepted() {
   if (origClear) {
     ls.clear = function () {
       pendingWrites.clear()
-      timers.forEach((t) => clearTimeout(t))
+      timers.forEach((t) => cancelTimer(t))
       timers.clear()
       if (origClear) origClear()
     }
@@ -58,10 +62,8 @@ function ensureLocalStorageIntercepted() {
  */
 export function flushPendingStorageWrites() {
   ensureLocalStorageIntercepted()
-  timers.forEach((timerId) => {
-    if (typeof timerId === 'number' || typeof timerId === 'object') {
-      clearTimeout(timerId)
-    }
+  timers.forEach((timerEntry) => {
+    cancelTimer(timerEntry)
   })
   timers.clear()
 
@@ -89,12 +91,7 @@ export function scheduleStorageWrite(key, value, delay = 100) {
   pendingWrites.set(key, value)
 
   if (timers.has(key)) {
-    const existing = timers.get(key)
-    if (typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function' && existing?.idleId) {
-      window.cancelIdleCallback(existing.idleId)
-    } else {
-      clearTimeout(existing)
-    }
+    cancelTimer(timers.get(key))
     timers.delete(key)
   }
 
@@ -147,12 +144,7 @@ export function getStorageItem(key) {
 export function removeStorageItem(key) {
   ensureLocalStorageIntercepted()
   if (timers.has(key)) {
-    const existing = timers.get(key)
-    if (typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function' && existing?.idleId) {
-      window.cancelIdleCallback(existing.idleId)
-    } else {
-      clearTimeout(existing)
-    }
+    cancelTimer(timers.get(key))
     timers.delete(key)
   }
   pendingWrites.delete(key)

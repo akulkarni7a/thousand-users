@@ -1,5 +1,10 @@
+// @vitest-environment jsdom
 import { test, expect, beforeEach, vi } from 'vitest'
-import React from 'react'
+import React, { act } from 'react'
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true
+
+import { createRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import GuessGrid from './components/GuessGrid.jsx'
 import App from './App.jsx'
@@ -43,6 +48,40 @@ test('GuessGrid renders comparison for guesses correctly', () => {
   spy.mockRestore()
 })
 
+test('GuessGrid does not recompute comparePlayers for existing unchanged rows when new guesses are added', () => {
+  const p1 = nflPlayers.NFL_PLAYERS[0]
+  const p2 = nflPlayers.NFL_PLAYERS[1]
+  const target = nflPlayers.NFL_PLAYERS[2]
+
+  const spy = vi.spyOn(nflPlayers, 'comparePlayers')
+
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+
+  // Initial render with 1 guess
+  act(() => {
+    root.render(React.createElement(GuessGrid, { guesses: [p1], targetPlayer: target }))
+  })
+
+  const initialCallCount = spy.mock.calls.length
+  expect(initialCallCount).toBeGreaterThan(0)
+
+  // Re-render with 2 guesses (p1 + p2)
+  act(() => {
+    root.render(React.createElement(GuessGrid, { guesses: [p1, p2], targetPlayer: target }))
+  })
+
+  // Since p1 row was memoized and unchanged, comparePlayers should only be called for p2 (1 additional call)
+  expect(spy.mock.calls.length).toBe(initialCallCount + 1)
+
+  act(() => {
+    root.unmount()
+  })
+  container.remove()
+  spy.mockRestore()
+})
+
 test('App performs single consolidated local storage read for daily state on boot', () => {
   const getItemSpy = vi.spyOn(localStorage, 'getItem')
 
@@ -78,4 +117,79 @@ test('flushPendingStorageWrites flushes all pending debounced writes synchronous
   flushPendingStorageWrites()
 
   expect(localStorage.getItem(key)).toBe('flush_value')
+})
+
+test('event listeners for beforeunload, pagehide, and visibilitychange flush pending writes', () => {
+  // Test beforeunload
+  scheduleStorageWrite('event_test_beforeunload', 'val1', 1000)
+  expect(getStorageItem('event_test_beforeunload')).toBe('val1')
+  expect(localStorage.getItem('event_test_beforeunload')).toBeNull()
+
+  window.dispatchEvent(new Event('beforeunload'))
+  expect(localStorage.getItem('event_test_beforeunload')).toBe('val1')
+
+  // Test pagehide
+  scheduleStorageWrite('event_test_pagehide', 'val2', 1000)
+  expect(getStorageItem('event_test_pagehide')).toBe('val2')
+  expect(localStorage.getItem('event_test_pagehide')).toBeNull()
+
+  window.dispatchEvent(new Event('pagehide'))
+  expect(localStorage.getItem('event_test_pagehide')).toBe('val2')
+
+  // Test visibilitychange (when hidden)
+  scheduleStorageWrite('event_test_visibility', 'val3', 1000)
+  expect(getStorageItem('event_test_visibility')).toBe('val3')
+  expect(localStorage.getItem('event_test_visibility')).toBeNull()
+
+  Object.defineProperty(document, 'visibilityState', {
+    configurable: true,
+    get: () => 'hidden',
+  })
+  document.dispatchEvent(new Event('visibilitychange'))
+  expect(localStorage.getItem('event_test_visibility')).toBe('val3')
+})
+
+test('scheduleStorageWrite supports requestIdleCallback and properly cancels pending callbacks', async () => {
+  let idleCallbackId = 0
+  const idleCallbacks = new Map()
+
+  const origRequestIdle = window.requestIdleCallback
+  const origCancelIdle = window.cancelIdleCallback
+
+  window.requestIdleCallback = vi.fn((cb, options) => {
+    idleCallbackId++
+    const id = idleCallbackId
+    const timer = setTimeout(() => {
+      if (idleCallbacks.has(id)) {
+        idleCallbacks.delete(id)
+        cb({ didTimeout: false, timeRemaining: () => 50 })
+      }
+    }, 50)
+    idleCallbacks.set(id, timer)
+    return id
+  })
+
+  window.cancelIdleCallback = vi.fn((id) => {
+    if (idleCallbacks.has(id)) {
+      clearTimeout(idleCallbacks.get(id))
+      idleCallbacks.delete(id)
+    }
+  })
+
+  try {
+    const key = 'test_idle_key'
+    scheduleStorageWrite(key, 'idle_value1', 100)
+    expect(window.requestIdleCallback).toHaveBeenCalled()
+
+    // Reschedule before it executes to trigger cancelIdleCallback
+    scheduleStorageWrite(key, 'idle_value2', 100)
+    expect(window.cancelIdleCallback).toHaveBeenCalled()
+
+    // Flush pending writes
+    flushPendingStorageWrites()
+    expect(localStorage.getItem(key)).toBe('idle_value2')
+  } finally {
+    window.requestIdleCallback = origRequestIdle
+    window.cancelIdleCallback = origCancelIdle
+  }
 })

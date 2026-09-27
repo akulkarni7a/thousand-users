@@ -1,4 +1,6 @@
-export default function GuessTile({ value, match, direction = '', colIndex = 0, label }) {
+import { memo } from 'react'
+
+function GuessTile({ value, match, direction = '', colIndex = 0, label }) {
   const statusClass = match || 'incorrect'
   const animationStyle = {
     animationDelay: `${colIndex * 120}ms`,
@@ -18,3 +20,6 @@ export default function GuessTile({ value, match, direction = '', colIndex = 0, 
     </div>
   )
 }
+
+export default memo(GuessTile)
+
