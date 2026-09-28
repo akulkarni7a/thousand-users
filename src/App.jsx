@@ -137,36 +137,38 @@ export default function App() {
       setGameStatus(status)
       setIsStatsOpen(true)
 
-      // Update statistics
-      setStats((prev) => {
-        const todayStr = new Date().toISOString().slice(0, 10)
-        const isNewDay = prev.lastPlayedDate !== todayStr
-        const newPlayed = prev.played + 1
-        const newWon = isWin ? prev.won + 1 : prev.won
-        
-        let newStreak = prev.currentStreak
-        if (isWin) {
-          newStreak = isNewDay || gameMode === 'practice' ? prev.currentStreak + 1 : prev.currentStreak
-        } else {
-          newStreak = 0
-        }
+      // Update statistics only for daily mode
+      if (gameMode === 'daily') {
+        setStats((prev) => {
+          const todayStr = new Date().toISOString().slice(0, 10)
+          const isNewDay = prev.lastPlayedDate !== todayStr
+          const newPlayed = prev.played + 1
+          const newWon = isWin ? prev.won + 1 : prev.won
+          
+          let newStreak = prev.currentStreak
+          if (isWin) {
+            newStreak = isNewDay ? prev.currentStreak + 1 : prev.currentStreak
+          } else {
+            newStreak = 0
+          }
 
-        const newMaxStreak = Math.max(prev.maxStreak, newStreak)
-        const numGuesses = newGuesses.length
-        const newDist = { ...prev.guessDistribution }
-        if (isWin && numGuesses >= 1 && numGuesses <= 8) {
-          newDist[numGuesses] = (newDist[numGuesses] || 0) + 1
-        }
+          const newMaxStreak = Math.max(prev.maxStreak, newStreak)
+          const numGuesses = newGuesses.length
+          const newDist = { ...prev.guessDistribution }
+          if (isWin && numGuesses >= 1 && numGuesses <= 8) {
+            newDist[numGuesses] = (newDist[numGuesses] || 0) + 1
+          }
 
-        return {
-          played: newPlayed,
-          won: newWon,
-          currentStreak: newStreak,
-          maxStreak: newMaxStreak,
-          guessDistribution: newDist,
-          lastPlayedDate: todayStr,
-        }
-      })
+          return {
+            played: newPlayed,
+            won: newWon,
+            currentStreak: newStreak,
+            maxStreak: newMaxStreak,
+            guessDistribution: newDist,
+            lastPlayedDate: todayStr,
+          }
+        })
+      }
     }
 
     if (gameMode === 'daily') {
