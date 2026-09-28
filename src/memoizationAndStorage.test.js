@@ -87,7 +87,7 @@ test('App performs single consolidated local storage read for daily state on boo
 
   renderToString(React.createElement(App))
 
-  const dailyReads = getItemSpy.mock.calls.filter((c) => c[0] === nflPlayers.DAILY_STORAGE_KEY).length
+  const dailyReads = getItemSpy.mock.calls.filter((c) => c[0] && c[0].startsWith('gridiron_guesser_daily_state')).length
   expect(dailyReads).toBeLessThanOrEqual(1)
 
   getItemSpy.mockRestore()

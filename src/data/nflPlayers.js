@@ -1,7 +1,6 @@
 import {
   scheduleStorageWrite,
   getStorageItem,
-  removeStorageItem,
 } from '../utils/asyncStorage.js'
 
 export const NFL_PLAYERS = [
@@ -597,10 +596,25 @@ export function comparePlayers(guess, target) {
 
 export const DAILY_STORAGE_KEY = 'gridiron_guesser_daily_state'
 
+export function getDailyStorageKey(dateStr) {
+  const targetDate = dateStr || new Date().toISOString().slice(0, 10)
+  return `gridiron_guesser_daily_state_${targetDate}`
+}
+
 export function loadDailyState(dateStr) {
   const todayStr = dateStr || new Date().toISOString().slice(0, 10)
+  const key = getDailyStorageKey(todayStr)
   try {
-    const saved = getStorageItem(DAILY_STORAGE_KEY)
+    let saved = getStorageItem(key)
+    if (!saved) {
+      const legacy = getStorageItem(DAILY_STORAGE_KEY)
+      if (legacy) {
+        const parsedLegacy = typeof legacy === 'string' ? JSON.parse(legacy) : legacy
+        if (parsedLegacy && typeof parsedLegacy === 'object' && parsedLegacy.date === todayStr) {
+          saved = legacy
+        }
+      }
+    }
     if (!saved) return null
     const parsed = typeof saved === 'string' ? JSON.parse(saved) : saved
     if (parsed && typeof parsed === 'object' && parsed.date === todayStr) {
@@ -612,8 +626,6 @@ export function loadDailyState(dateStr) {
           ? parsed.gameStatus
           : 'IN_PROGRESS',
       }
-    } else {
-      removeStorageItem(DAILY_STORAGE_KEY)
     }
   } catch {
     // ignore storage errors
@@ -624,7 +636,9 @@ export function loadDailyState(dateStr) {
 export function saveDailyState(state) {
   try {
     if (!state) return
-    scheduleStorageWrite(DAILY_STORAGE_KEY, state)
+    const targetDate = state.date || new Date().toISOString().slice(0, 10)
+    const key = getDailyStorageKey(targetDate)
+    scheduleStorageWrite(key, state)
   } catch {
     // ignore storage errors
   }
