@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getPuzzleNumber, shareGameResults } from '../data/nflPlayers'
+import DailyCountdown from './DailyCountdown'
 
 export default function StatsModal({
   isOpen,
@@ -102,18 +103,18 @@ export default function StatsModal({
           })}
         </div>
 
+        {isGameOver && gameMode === 'daily' && (
+          <DailyCountdown onPlayPractice={onPlayAgain} />
+        )}
+
         {isGameOver && (
           <div className="modal-actions">
             <button type="button" className="share-btn" onClick={handleShare}>
               {copied ? '✅ Copied to Clipboard!' : '📤 Share Results'}
             </button>
-            {gameMode === 'practice' ? (
+            {gameMode === 'practice' && (
               <button type="button" className="play-again-btn" onClick={onPlayAgain}>
                 🔄 Next Practice Player
-              </button>
-            ) : (
-              <button type="button" className="practice-switch-btn" onClick={onPlayAgain}>
-                🏈 Play Practice Mode
               </button>
             )}
           </div>

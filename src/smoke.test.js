@@ -10,9 +10,9 @@ import {
   getDailyPlayer,
   getRandomPlayer,
   getPuzzleNumber,
+  getDailyStorageKey,
   loadDailyState,
   saveDailyState,
-  DAILY_STORAGE_KEY,
 } from './data/nflPlayers.js'
 
 // Simple localStorage polyfill if test environment doesn't provide full storage
@@ -173,7 +173,7 @@ test('saveDailyState and loadDailyState persist state for same date', () => {
   expect(loaded.gameStatus).toBe('IN_PROGRESS')
 })
 
-test('loadDailyState purges stale daily state when date changes', () => {
+test('loadDailyState isolates daily state by date without overwriting', () => {
   const yesterdayStr = '2026-09-17'
   const todayStr = '2026-09-18'
 
@@ -185,12 +185,12 @@ test('loadDailyState purges stale daily state when date changes', () => {
   }
 
   saveDailyState(yesterdayState)
-  expect(localStorage.getItem(DAILY_STORAGE_KEY)).not.toBeNull()
+  expect(localStorage.getItem(getDailyStorageKey(yesterdayStr))).not.toBeNull()
 
-  // Calling loadDailyState for today should purge stale state
+  // Calling loadDailyState for today returns null and does not overwrite yesterday's state
   const loaded = loadDailyState(todayStr)
   expect(loaded).toBeNull()
-  expect(localStorage.getItem(DAILY_STORAGE_KEY)).toBeNull()
+  expect(localStorage.getItem(getDailyStorageKey(yesterdayStr))).not.toBeNull()
 })
 
 test('App rehydrates saved daily state on render', () => {

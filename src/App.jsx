@@ -10,10 +10,12 @@ import {
 } from './data/nflPlayers'
 import { scheduleStorageWrite, getStorageItem } from './utils/asyncStorage'
 import { parseDeepLink, cleanUrlParameters } from './utils/deepLinkRouter'
+import { checkStreakExpiration, calculateUpdatedStats } from './utils/streakUtils'
 import PlayerSearch from './components/PlayerSearch'
 import GuessGrid from './components/GuessGrid'
 import StatsModal from './components/StatsModal'
 import WelcomeModal from './components/WelcomeModal'
+import DailyCountdown from './components/DailyCountdown'
 import './App.css'
 
 const DEFAULT_STATS = {
@@ -34,7 +36,7 @@ function loadInitialAppState() {
     const savedStats = getStorageItem('gridiron_guesser_stats')
     if (savedStats) {
       const parsed = typeof savedStats === 'string' ? JSON.parse(savedStats) : savedStats
-      stats = { ...DEFAULT_STATS, ...parsed }
+      stats = checkStreakExpiration({ ...DEFAULT_STATS, ...parsed })
     }
   } catch {
     // ignore storage errors
@@ -139,33 +141,13 @@ export default function App() {
 
       // Update statistics
       setStats((prev) => {
-        const todayStr = new Date().toISOString().slice(0, 10)
-        const isNewDay = prev.lastPlayedDate !== todayStr
-        const newPlayed = prev.played + 1
-        const newWon = isWin ? prev.won + 1 : prev.won
-        
-        let newStreak = prev.currentStreak
-        if (isWin) {
-          newStreak = isNewDay || gameMode === 'practice' ? prev.currentStreak + 1 : prev.currentStreak
-        } else {
-          newStreak = 0
-        }
-
-        const newMaxStreak = Math.max(prev.maxStreak, newStreak)
-        const numGuesses = newGuesses.length
-        const newDist = { ...prev.guessDistribution }
-        if (isWin && numGuesses >= 1 && numGuesses <= 8) {
-          newDist[numGuesses] = (newDist[numGuesses] || 0) + 1
-        }
-
-        return {
-          played: newPlayed,
-          won: newWon,
-          currentStreak: newStreak,
-          maxStreak: newMaxStreak,
-          guessDistribution: newDist,
-          lastPlayedDate: todayStr,
-        }
+        const targetDate = dailyDate || new Date().toISOString().slice(0, 10)
+        return calculateUpdatedStats(prev, {
+          isWin,
+          gameMode,
+          currentDateStr: targetDate,
+          numGuesses: newGuesses.length,
+        })
       })
     }
 
@@ -277,25 +259,20 @@ export default function App() {
                 ? `🎉 Correct! It's ${targetPlayer.name}!`
                 : `🏈 Out of guesses! Mystery player was ${targetPlayer.name}.`}
             </p>
+            {gameMode === 'daily' && (
+              <DailyCountdown onPlayPractice={() => initGame('practice')} />
+            )}
             <div className="end-btn-group">
               <button type="button" className="quick-share-btn" onClick={handleQuickShare}>
                 {copiedShare ? '✅ Copied!' : '📤 Share Results'}
               </button>
-              {gameMode === 'practice' ? (
+              {gameMode === 'practice' && (
                 <button
                   type="button"
                   className="quick-again-btn"
                   onClick={() => initGame('practice')}
                 >
                   🔄 Next Player
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="quick-again-btn"
-                  onClick={() => initGame('practice')}
-                >
-                  🎮 Try Practice Mode
                 </button>
               )}
             </div>
