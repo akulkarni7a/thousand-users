@@ -84,7 +84,7 @@ export default function StatsModal({
             const count = stats.guessDistribution[guessNum] || 0
             const maxCount = Math.max(1, ...Object.values(stats.guessDistribution))
             const widthPercent = Math.max(8, Math.round((count / maxCount) * 100))
-            const isHighlight = isGameOver && isWin && guesses.length === guessNum
+            const isHighlight = isGameOver && isWin && gameMode === 'daily' && guesses.length === guessNum
 
             return (
               <div key={guessNum} className="dist-row">
