@@ -170,17 +170,6 @@ export default function App() {
         })
       }
     }
-
-    if (gameMode === 'daily') {
-      const targetDate = dailyDate || new Date().toISOString().slice(0, 10)
-      const pNum = getPuzzleNumber(targetDate)
-      saveDailyState({
-        date: targetDate,
-        puzzleNum: pNum,
-        guesses: newGuesses,
-        gameStatus: status,
-      })
-    }
   }
 
   const handleQuickShare = async () => {

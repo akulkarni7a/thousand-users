@@ -156,7 +156,7 @@ test('scheduleStorageWrite supports requestIdleCallback and properly cancels pen
   const origRequestIdle = window.requestIdleCallback
   const origCancelIdle = window.cancelIdleCallback
 
-  window.requestIdleCallback = vi.fn((cb, options) => {
+  window.requestIdleCallback = vi.fn((cb, _options) => {
     idleCallbackId++
     const id = idleCallbackId
     const timer = setTimeout(() => {
@@ -193,3 +193,51 @@ test('scheduleStorageWrite supports requestIdleCallback and properly cancels pen
     window.cancelIdleCallback = origCancelIdle
   }
 })
+
+test('selecting a player guess in daily mode triggers exactly one daily state persistence call without duplicate timer cancellations', () => {
+  const saveDailyStateSpy = vi.spyOn(nflPlayers, 'saveDailyState')
+
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+
+  localStorage.setItem(nflPlayers.WELCOME_STORAGE_KEY, 'true')
+
+  act(() => {
+    root.render(React.createElement(App))
+  })
+
+  // Clear initial mount call history
+  saveDailyStateSpy.mockClear()
+
+  const input = container.querySelector('.search-input')
+  expect(input).toBeTruthy()
+
+  act(() => {
+    input.focus()
+  })
+
+  const item = container.querySelector('.search-result-item')
+  expect(item).toBeTruthy()
+
+  act(() => {
+    item.click()
+  })
+
+  // Exactly ONE saveDailyState invocation per user guess state update
+  expect(saveDailyStateSpy).toHaveBeenCalledTimes(1)
+
+  // Verify daily state persists correctly to local storage
+  flushPendingStorageWrites()
+  const saved = localStorage.getItem(nflPlayers.DAILY_STORAGE_KEY)
+  expect(saved).not.toBeNull()
+  const parsed = JSON.parse(saved)
+  expect(parsed.guesses.length).toBe(1)
+
+  act(() => {
+    root.unmount()
+  })
+  container.remove()
+  saveDailyStateSpy.mockRestore()
+})
+
