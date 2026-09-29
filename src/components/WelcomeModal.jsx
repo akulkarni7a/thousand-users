@@ -1,6 +1,15 @@
 import React from 'react'
 
-export default function WelcomeModal({ isOpen, onClose, onStartPlaying }) {
+export default function WelcomeModal({
+  isOpen,
+  onClose,
+  onStartPlaying,
+  referralContext = null,
+  gameMode = 'daily',
+  puzzleNum = null,
+  isDeepLink = false,
+  routeState = null,
+}) {
   if (!isOpen) return null
 
   const handleStart = () => {
@@ -8,6 +17,36 @@ export default function WelcomeModal({ isOpen, onClose, onStartPlaying }) {
       onStartPlaying()
     } else if (onClose) {
       onClose()
+    }
+  }
+
+  const activeReferral = referralContext || routeState?.referralContext
+  const activeIsDeepLink = isDeepLink || Boolean(routeState?.isDeepLink)
+  const hasReferral = Boolean(activeReferral || activeIsDeepLink)
+
+  const activeMode = gameMode || routeState?.gameMode || 'daily'
+  const rawPuzzle = puzzleNum || routeState?.puzzleNum
+  const activePuzzleNum =
+    typeof rawPuzzle === 'number'
+      ? rawPuzzle
+      : typeof rawPuzzle === 'string' && !isNaN(parseInt(rawPuzzle, 10))
+        ? parseInt(rawPuzzle, 10)
+        : null
+
+  let bannerMessage = ''
+  let ctaText = 'Start Playing 🏈'
+
+  if (hasReferral) {
+    if (activeMode === 'practice') {
+      bannerMessage = 'You were invited to accept a Practice Challenge!'
+      ctaText = 'Accept Practice Challenge 🎮'
+    } else {
+      bannerMessage = activePuzzleNum
+        ? `You were invited to play Daily Puzzle #${activePuzzleNum}!`
+        : 'You were invited to play the Daily Puzzle!'
+      ctaText = activePuzzleNum
+        ? `Play Daily Puzzle #${activePuzzleNum} 🏈`
+        : 'Play Daily Puzzle 🏈'
     }
   }
 
@@ -24,6 +63,12 @@ export default function WelcomeModal({ isOpen, onClose, onStartPlaying }) {
         </button>
 
         <div className="welcome-header">
+          {hasReferral && (
+            <div className="referral-banner" data-testid="referral-banner">
+              <span className="referral-banner-icon">🎯</span>
+              <p className="referral-banner-text">{bannerMessage}</p>
+            </div>
+          )}
           <h2 id="welcome-modal-title">🏈 WELCOME TO GRIDIRON GUESSER</h2>
           <p className="welcome-subtitle">
             Test your NFL knowledge! Guess the mystery player in 8 attempts or fewer.
@@ -82,7 +127,7 @@ export default function WelcomeModal({ isOpen, onClose, onStartPlaying }) {
 
         <div className="welcome-footer">
           <button type="button" className="start-playing-btn" onClick={handleStart}>
-            Start Playing 🏈
+            {ctaText}
           </button>
         </div>
       </div>

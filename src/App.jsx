@@ -258,6 +258,11 @@ export default function App() {
           isOpen={isHelpOpen}
           onClose={handleCloseHelp}
           onStartPlaying={handleStartPlaying}
+          referralContext={initialAppState.routeState?.referralContext}
+          gameMode={gameMode}
+          puzzleNum={puzzleNum}
+          isDeepLink={initialAppState.routeState?.isDeepLink}
+          routeState={initialAppState.routeState}
         />
 
         <section className="search-section">
