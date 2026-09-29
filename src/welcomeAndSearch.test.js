@@ -1,4 +1,4 @@
-import { test, expect, beforeEach } from 'vitest'
+import { test, expect, beforeEach, vi } from 'vitest'
 import React from 'react'
 import { renderToString } from 'react-dom/server'
 import App from './App.jsx'
@@ -162,3 +162,81 @@ test('getSearchResults uses pre-computed search fields without calling toLowerCa
   expect(results).toHaveLength(1)
   expect(toLowerCaseCalled).toBe(false)
 })
+
+test('WelcomeModal renders personalized daily puzzle referral header banner and custom CTA button when referral context or deep link is present', () => {
+  const referralContext = {
+    utm_source: 'share_card',
+    utm_medium: 'social',
+    utm_campaign: 'daily_challenge',
+  }
+  const html = renderToString(
+    React.createElement(WelcomeModal, {
+      isOpen: true,
+      onClose: () => {},
+      referralContext,
+      gameMode: 'daily',
+      puzzleNum: 42,
+      isDeepLink: true,
+    })
+  )
+
+  expect(html).toContain('You were invited to play Daily Puzzle #42!')
+  expect(html).toContain('Play Daily Puzzle #42')
+  expect(html).toContain('WELCOME TO GRIDIRON GUESSER')
+  expect(html).toContain('Exact Match')
+})
+
+test('WelcomeModal renders practice challenge referral header banner and custom CTA button for practice deep link', () => {
+  const referralContext = {
+    utm_source: 'share_card',
+    utm_campaign: 'practice_mode',
+  }
+  const html = renderToString(
+    React.createElement(WelcomeModal, {
+      isOpen: true,
+      onClose: () => {},
+      referralContext,
+      gameMode: 'practice',
+      isDeepLink: true,
+    })
+  )
+
+  expect(html).toContain('You were invited to accept a Practice Challenge!')
+  expect(html).toContain('Accept Practice Challenge')
+  expect(html).toContain('WELCOME TO GRIDIRON GUESSER')
+})
+
+test('App renders personalized WelcomeModal on first visit via daily challenge deep link', () => {
+  vi.stubGlobal('window', {
+    location: {
+      search: '?utm_source=share_card&utm_medium=social&utm_campaign=daily_challenge&mode=daily&puzzle=42',
+      pathname: '/',
+    },
+    history: {
+      replaceState: () => {},
+    },
+  })
+
+  const html = renderToString(React.createElement(App))
+  expect(html).toContain('You were invited to play Daily Puzzle #42!')
+  expect(html).toContain('Play Daily Puzzle #42')
+
+  vi.unstubAllGlobals()
+})
+
+test('WelcomeModal fallback defaults operate safely when puzzle number is missing or invalid', () => {
+  const html = renderToString(
+    React.createElement(WelcomeModal, {
+      isOpen: true,
+      onClose: () => {},
+      referralContext: { utm_source: 'unknown' },
+      gameMode: 'daily',
+      puzzleNum: null,
+      isDeepLink: true,
+    })
+  )
+
+  expect(html).toContain('You were invited to play the Daily Puzzle!')
+  expect(html).toContain('Play Daily Puzzle')
+})
+
