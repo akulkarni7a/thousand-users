@@ -7,6 +7,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 import { createRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import GuessGrid from './components/GuessGrid.jsx'
+import PlayerSearch from './components/PlayerSearch.jsx'
 import App from './App.jsx'
 import * as nflPlayers from './data/nflPlayers.js'
 import {
@@ -156,7 +157,7 @@ test('scheduleStorageWrite supports requestIdleCallback and properly cancels pen
   const origRequestIdle = window.requestIdleCallback
   const origCancelIdle = window.cancelIdleCallback
 
-  window.requestIdleCallback = vi.fn((cb, options) => {
+  window.requestIdleCallback = vi.fn((cb, _options) => {
     idleCallbackId++
     const id = idleCallbackId
     const timer = setTimeout(() => {
@@ -192,4 +193,86 @@ test('scheduleStorageWrite supports requestIdleCallback and properly cancels pen
     window.requestIdleCallback = origRequestIdle
     window.cancelIdleCallback = origCancelIdle
   }
+})
+
+test('getSearchResults starter suggestions do not invoke Array.prototype.sort at runtime', () => {
+  const sortSpy = vi.spyOn(Array.prototype, 'sort')
+  sortSpy.mockClear()
+
+  const results = nflPlayers.getSearchResults(nflPlayers.NFL_PLAYERS, '')
+  expect(results.length).toBeGreaterThan(0)
+  expect(sortSpy).not.toHaveBeenCalled()
+
+  sortSpy.mockRestore()
+})
+
+test('PlayerSearch reuses memoized search results when guessedIds reference matches', () => {
+  const spy = vi.spyOn(nflPlayers, 'getSearchResults')
+  spy.mockClear()
+
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+
+  const guessedIds = ['1', '2']
+
+  act(() => {
+    root.render(React.createElement(PlayerSearch, { onSelectPlayer: () => {}, guessedIds }))
+  })
+
+  const initialCallCount = spy.mock.calls.length
+
+  // Re-render with identical guessedIds array reference
+  act(() => {
+    root.render(React.createElement(PlayerSearch, { onSelectPlayer: () => {}, guessedIds }))
+  })
+
+  // Search results should be reused without re-executing getSearchResults
+  expect(spy.mock.calls.length).toBe(initialCallCount)
+
+  // Re-render with new guessedIds array reference
+  act(() => {
+    root.render(React.createElement(PlayerSearch, { onSelectPlayer: () => {}, guessedIds: ['1', '2', '3'] }))
+  })
+
+  // getSearchResults should re-evaluate
+  expect(spy.mock.calls.length).toBeGreaterThan(initialCallCount)
+
+  act(() => {
+    root.unmount()
+  })
+  container.remove()
+  spy.mockRestore()
+})
+
+test('App preserves guessedIds reference equality across re-renders when guesses state is unchanged', () => {
+  const spy = vi.spyOn(nflPlayers, 'getSearchResults')
+  spy.mockClear()
+
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+
+  act(() => {
+    root.render(React.createElement(App))
+  })
+
+  const initialCallCount = spy.mock.calls.length
+
+  // Toggle help modal or stats modal in App
+  const helpBtn = container.querySelector('button[title="How to Play"]')
+  if (helpBtn) {
+    act(() => {
+      helpBtn.click()
+    })
+  }
+
+  // PlayerSearch getSearchResults should NOT re-evaluate during modal toggles
+  expect(spy.mock.calls.length).toBe(initialCallCount)
+
+  act(() => {
+    root.unmount()
+  })
+  container.remove()
+  spy.mockRestore()
 })

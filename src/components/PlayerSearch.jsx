@@ -2,8 +2,9 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { NFL_PLAYERS, getSearchResults } from '../data/nflPlayers'
 
 const CATEGORIES = ['All', 'QB', 'RB', 'WR', 'Offense', 'Defense', 'AFC', 'NFC']
+const EMPTY_GUESSED_IDS = []
 
-export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled = false }) {
+export default function PlayerSearch({ onSelectPlayer, guessedIds = EMPTY_GUESSED_IDS, disabled = false }) {
   const [inputValue, setInputValue] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [category, setCategory] = useState('All')

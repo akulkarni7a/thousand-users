@@ -468,9 +468,11 @@ NFL_PLAYERS.forEach((player) => {
   player.searchAbbr = player.teamAbbr.toLowerCase()
 })
 
+const PRE_SORTED_PLAYERS = [...NFL_PLAYERS].sort((a, b) => b.proBowls - a.proBowls)
+
 export const WELCOME_STORAGE_KEY = 'gridiron_guesser_welcome_seen'
 
-export function getSearchResults(players, query, guessedIds = [], category = 'All') {
+export function getSearchResults(players = NFL_PLAYERS, query, guessedIds = [], category = 'All') {
   const cleanQuery = (query || '').trim().toLowerCase()
   const guessedSet = new Set(guessedIds.map((id) => String(id)))
 
@@ -486,10 +488,16 @@ export function getSearchResults(players, query, guessedIds = [], category = 'Al
   }
 
   if (cleanQuery.length === 0) {
-    return players
-      .filter((p) => !guessedSet.has(String(p.id)) && matchesCategory(p))
-      .sort((a, b) => b.proBowls - a.proBowls)
-      .slice(0, 8)
+    const sourceList = players === NFL_PLAYERS ? PRE_SORTED_PLAYERS : players
+    const results = []
+    for (let i = 0; i < sourceList.length; i++) {
+      const p = sourceList[i]
+      if (!guessedSet.has(String(p.id)) && matchesCategory(p)) {
+        results.push(p)
+        if (results.length === 8) break
+      }
+    }
+    return results
   }
 
   return players.filter((player) => {
