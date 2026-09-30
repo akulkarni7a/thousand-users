@@ -149,6 +149,33 @@ describe('deepLinkRouter utility module', () => {
       expect(saved).toContain('practice_mode')
     })
 
+    it('parses practice challenge deep link with target player parameter and binds player context', () => {
+      const url = '?utm_source=share_card&utm_campaign=practice_mode&mode=practice&player=3'
+      const result = parseDeepLink(url)
+
+      expect(result.gameMode).toBe('practice')
+      expect(result.targetPlayer).toBeDefined()
+      expect(String(result.targetPlayer.id)).toBe('3')
+      expect(result.targetPlayer.name).toBe('Josh Allen')
+      expect(result.isDeepLink).toBe(true)
+    })
+
+    it('falls back safely to random player when practice player ID is invalid or non-matching', () => {
+      const urlInvalid = '?mode=practice&player=99999'
+      const resultInvalid = parseDeepLink(urlInvalid)
+
+      expect(resultInvalid.gameMode).toBe('practice')
+      expect(resultInvalid.targetPlayer).toBeDefined()
+      expect(resultInvalid.isDeepLink).toBe(true)
+
+      const urlNonNumeric = '?mode=practice&player=invalid_id'
+      const resultNonNumeric = parseDeepLink(urlNonNumeric)
+
+      expect(resultNonNumeric.gameMode).toBe('practice')
+      expect(resultNonNumeric.targetPlayer).toBeDefined()
+      expect(resultNonNumeric.isDeepLink).toBe(true)
+    })
+
     it('falls back gracefully on invalid mode or invalid puzzle number', () => {
       const invalidUrl = '?mode=unknown_mode&puzzle=-999'
       const result = parseDeepLink(invalidUrl)

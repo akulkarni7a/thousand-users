@@ -1,5 +1,6 @@
 import { scheduleStorageWrite } from './asyncStorage.js'
 import {
+  NFL_PLAYERS,
   getDailyPlayer,
   getRandomPlayer,
   getPuzzleNumber,
@@ -112,11 +113,17 @@ export function parseDeepLink(inputUrlOrSearch) {
 
   const rawMode = searchParams.get('mode')
   const rawPuzzle = searchParams.get('puzzle')
+  const rawPlayerId = searchParams.get('player')
 
   if (rawMode === 'practice') {
     gameMode = 'practice'
-    targetPlayer = getRandomPlayer()
     isDeepLink = true
+    if (rawPlayerId) {
+      const foundPlayer = NFL_PLAYERS.find((p) => String(p.id) === String(rawPlayerId))
+      targetPlayer = foundPlayer || getRandomPlayer()
+    } else {
+      targetPlayer = getRandomPlayer()
+    }
   } else if (rawMode === 'daily' || rawPuzzle) {
     gameMode = 'daily'
     if (rawPuzzle) {

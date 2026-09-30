@@ -697,6 +697,8 @@ export function generateShareCard(guesses, targetPlayer, gameMode = 'daily', puz
   let shareUrl = `https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=${campaign}&mode=${gameMode}`
   if (gameMode === 'daily') {
     shareUrl += `&puzzle=${puzzleNum}`
+  } else if (gameMode === 'practice' && targetPlayer?.id) {
+    shareUrl += `&player=${targetPlayer.id}`
   }
 
   return `${title} ${guessCountText}\n\n${rows.join('\n')}\n\n${shareUrl}`
@@ -717,6 +719,8 @@ export async function shareGameResults({
   let shareUrl = `https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=${campaign}&mode=${gameMode}`
   if (gameMode === 'daily') {
     shareUrl += `&puzzle=${puzzleNum}`
+  } else if (gameMode === 'practice' && targetPlayer?.id) {
+    shareUrl += `&player=${targetPlayer.id}`
   }
 
   const copyToClipboard = async () => {
