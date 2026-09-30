@@ -43,7 +43,7 @@ function loadInitialAppState() {
   let isHelpOpen = true
   try {
     const seen = getStorageItem(WELCOME_STORAGE_KEY)
-    if (seen) {
+    if (seen && !routeState.isDeepLink) {
       isHelpOpen = false
     }
   } catch {

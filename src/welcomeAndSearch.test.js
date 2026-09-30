@@ -224,6 +224,24 @@ test('App renders personalized WelcomeModal on first visit via daily challenge d
   vi.unstubAllGlobals()
 })
 
+test('App renders personalized WelcomeModal on visit via practice challenge deep link with player parameter', () => {
+  vi.stubGlobal('window', {
+    location: {
+      search: '?utm_source=share_card&utm_medium=social&utm_campaign=practice_mode&mode=practice&player=3',
+      pathname: '/',
+    },
+    history: {
+      replaceState: () => {},
+    },
+  })
+
+  const html = renderToString(React.createElement(App))
+  expect(html).toContain('You were invited to accept a Practice Challenge!')
+  expect(html).toContain('Accept Practice Challenge')
+
+  vi.unstubAllGlobals()
+})
+
 test('WelcomeModal fallback defaults operate safely when puzzle number is missing or invalid', () => {
   const html = renderToString(
     React.createElement(WelcomeModal, {

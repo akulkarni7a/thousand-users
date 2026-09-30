@@ -150,7 +150,7 @@ test('generateShareCard formats practice mode UTM parameters accurately', () => 
   const shareText = generateShareCard(guesses, target, 'practice', 1, false)
 
   expect(shareText).toContain('Gridiron Guesser Practice X/8')
-  expect(shareText).toContain('https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=practice_mode&mode=practice')
+  expect(shareText).toContain('https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=practice_mode&mode=practice&player=1')
 })
 
 test('saveDailyState and loadDailyState persist state for same date', () => {

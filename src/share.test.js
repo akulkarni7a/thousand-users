@@ -63,7 +63,7 @@ test('shareGameResults invokes navigator.share when supported with title, text, 
   )
 })
 
-test('shareGameResults constructs practice mode shareUrl with campaign and mode parameters', async () => {
+test('shareGameResults constructs practice mode shareUrl with campaign, mode, and player parameters', async () => {
   const shareMock = vi.fn().mockResolvedValue(undefined)
   Object.defineProperty(globalThis.navigator, 'share', {
     value: shareMock,
@@ -86,7 +86,7 @@ test('shareGameResults constructs practice mode shareUrl with campaign and mode 
   const shareArg = shareMock.mock.calls[0][0]
   expect(shareArg.title).toBe('Gridiron Guesser Practice')
   expect(shareArg.url).toBe(
-    'https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=practice_mode&mode=practice'
+    'https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=practice_mode&mode=practice&player=1'
   )
 })
 
