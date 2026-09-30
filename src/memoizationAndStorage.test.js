@@ -241,3 +241,43 @@ test('selecting a player guess in daily mode triggers exactly one daily state pe
   saveDailyStateSpy.mockRestore()
 })
 
+test('PlayerSearch avoids calling getSearchResults during unrelated App state changes', () => {
+  const getSearchResultsSpy = vi.spyOn(nflPlayers, 'getSearchResults')
+
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+
+  localStorage.setItem(nflPlayers.WELCOME_STORAGE_KEY, 'true')
+
+  act(() => {
+    root.render(React.createElement(App))
+  })
+
+  // Clear initial mount search calls
+  getSearchResultsSpy.mockClear()
+
+  // Find header buttons (Help / Stats) to trigger unrelated parent re-renders
+  const buttons = container.querySelectorAll('.icon-btn')
+  expect(buttons.length).toBeGreaterThan(0)
+
+  act(() => {
+    buttons[0].click() // Toggle help modal
+  })
+
+  // getSearchResults should NOT be executed on unrelated state change
+  expect(getSearchResultsSpy).not.toHaveBeenCalled()
+
+  act(() => {
+    buttons[1].click() // Open stats modal
+  })
+
+  expect(getSearchResultsSpy).not.toHaveBeenCalled()
+
+  act(() => {
+    root.unmount()
+  })
+  container.remove()
+  getSearchResultsSpy.mockRestore()
+})
+

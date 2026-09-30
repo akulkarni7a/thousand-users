@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   getDailyPlayer,
   getRandomPlayer,
@@ -192,7 +192,7 @@ export default function App() {
   }
 
   const puzzleNum = getPuzzleNumber(dailyDate)
-  const guessedIds = guesses.map((g) => g.id)
+  const guessedIds = useMemo(() => guesses.map((g) => g.id), [guesses])
 
   return (
     <div className="app-stadium-layout">
