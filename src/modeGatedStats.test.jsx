@@ -82,13 +82,14 @@ test('Practice mode wins do not increment played, won, or currentStreak in daily
   const mahomes = nflPlayers.NFL_PLAYERS[0]
   vi.spyOn(nflPlayers, 'getRandomPlayer').mockReturnValue(mahomes)
 
+  const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
   const initialStats = {
     played: 5,
     won: 4,
     currentStreak: 3,
     maxStreak: 3,
     guessDistribution: { 1: 0, 2: 1, 3: 2, 4: 1, 5: 0, 6: 0, 7: 0, 8: 0 },
-    lastPlayedDate: '2026-09-20',
+    lastPlayedDate: yesterdayStr,
   }
   localStorage.setItem('gridiron_guesser_stats', JSON.stringify(initialStats))
 
@@ -125,13 +126,14 @@ test('Practice mode losses do not reset currentStreak to zero', () => {
   const mahomes = nflPlayers.NFL_PLAYERS[0]
   vi.spyOn(nflPlayers, 'getRandomPlayer').mockReturnValue(mahomes)
 
+  const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
   const initialStats = {
     played: 5,
     won: 4,
     currentStreak: 3,
     maxStreak: 3,
     guessDistribution: { 1: 0, 2: 1, 3: 2, 4: 1, 5: 0, 6: 0, 7: 0, 8: 0 },
-    lastPlayedDate: '2026-09-20',
+    lastPlayedDate: yesterdayStr,
   }
   localStorage.setItem('gridiron_guesser_stats', JSON.stringify(initialStats))
 
@@ -172,13 +174,14 @@ test('Daily mode wins update daily statistics, win count, and streaks correctly'
   vi.spyOn(nflPlayers, 'getDailyPlayer').mockReturnValue(kelce)
 
   const todayStr = new Date().toISOString().slice(0, 10)
+  const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
   const initialStats = {
     played: 5,
     won: 4,
     currentStreak: 3,
     maxStreak: 3,
     guessDistribution: { 1: 0, 2: 1, 3: 2, 4: 1, 5: 0, 6: 0, 7: 0, 8: 0 },
-    lastPlayedDate: '2026-09-20',
+    lastPlayedDate: yesterdayStr,
   }
   localStorage.setItem('gridiron_guesser_stats', JSON.stringify(initialStats))
 
@@ -241,13 +244,14 @@ test('Statistics modal opened after practice game displays unchanged daily stati
   const mahomes = nflPlayers.NFL_PLAYERS[0]
   vi.spyOn(nflPlayers, 'getRandomPlayer').mockReturnValue(mahomes)
 
+  const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
   const initialStats = {
     played: 10,
     won: 8,
     currentStreak: 5,
     maxStreak: 5,
     guessDistribution: { 1: 1, 2: 2, 3: 3, 4: 2, 5: 0, 6: 0, 7: 0, 8: 0 },
-    lastPlayedDate: '2026-09-20',
+    lastPlayedDate: yesterdayStr,
   }
   localStorage.setItem('gridiron_guesser_stats', JSON.stringify(initialStats))
 

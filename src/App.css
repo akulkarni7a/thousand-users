@@ -748,3 +748,80 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(34, 197, 94, 0.6);
 }
+
+/* Countdown Timer Component Styles */
+.next-puzzle-countdown-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.next-puzzle-countdown-bar .countdown-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.next-puzzle-countdown-bar .countdown-value {
+  font-family: monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 1px;
+}
+
+.refresh-puzzle-btn {
+  background: #15803d;
+  color: #ffffff;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.next-puzzle-countdown-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 16px 0;
+}
+
+.next-puzzle-countdown-card .countdown-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.next-puzzle-countdown-card .countdown-value {
+  font-family: monospace;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #38bdf8;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+.expired-badge {
+  margin-top: 6px;
+  background: #15803d;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: bold;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
