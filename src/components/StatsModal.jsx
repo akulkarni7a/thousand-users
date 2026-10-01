@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { getPuzzleNumber, shareGameResults } from '../data/nflPlayers'
+import useNextPuzzleCountdown from '../hooks/useNextPuzzleCountdown'
+import { sanitizeStats } from '../services/streakService'
 
 export default function StatsModal({
   isOpen,
@@ -13,10 +15,13 @@ export default function StatsModal({
   onPlayAgain,
 }) {
   const [copied, setCopied] = useState(false)
+  const countdown = useNextPuzzleCountdown()
 
   if (!isOpen) return null
 
   const puzzleNum = getPuzzleNumber()
+  const displayStats = sanitizeStats(stats)
+  const winPercentage = displayStats.played > 0 ? Math.round((displayStats.won / displayStats.played) * 100) : 0
 
   const handleShare = async () => {
     await shareGameResults({
@@ -34,8 +39,6 @@ export default function StatsModal({
       },
     })
   }
-
-  const winPercentage = stats.played > 0 ? Math.round((stats.won / stats.played) * 100) : 0
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
@@ -60,7 +63,7 @@ export default function StatsModal({
         <h3 className="stats-header">STATISTICS</h3>
         <div className="stats-summary-grid">
           <div className="stat-box">
-            <span className="stat-value">{stats.played}</span>
+            <span className="stat-value">{displayStats.played}</span>
             <span className="stat-label">Played</span>
           </div>
           <div className="stat-box">
@@ -68,11 +71,11 @@ export default function StatsModal({
             <span className="stat-label">Win %</span>
           </div>
           <div className="stat-box">
-            <span className="stat-value">{stats.currentStreak}</span>
+            <span className="stat-value">{displayStats.currentStreak}</span>
             <span className="stat-label">Current Streak</span>
           </div>
           <div className="stat-box">
-            <span className="stat-value">{stats.maxStreak}</span>
+            <span className="stat-value">{displayStats.maxStreak}</span>
             <span className="stat-label">Max Streak</span>
           </div>
         </div>
@@ -81,8 +84,8 @@ export default function StatsModal({
         <div className="distribution-bar-chart">
           {Array.from({ length: 8 }).map((_, i) => {
             const guessNum = i + 1
-            const count = stats.guessDistribution[guessNum] || 0
-            const maxCount = Math.max(1, ...Object.values(stats.guessDistribution))
+            const count = displayStats.guessDistribution[guessNum] || 0
+            const maxCount = Math.max(1, ...Object.values(displayStats.guessDistribution))
             const widthPercent = Math.max(8, Math.round((count / maxCount) * 100))
             const isHighlight = isGameOver && isWin && gameMode === 'daily' && guesses.length === guessNum
 
@@ -101,6 +104,16 @@ export default function StatsModal({
             )
           })}
         </div>
+
+        {(gameMode === 'daily' || isGameOver) && (
+          <div className="next-puzzle-countdown-card">
+            <span className="countdown-label">NEXT DAILY PUZZLE IN</span>
+            <span className="countdown-value">{countdown.formattedTime}</span>
+            {countdown.isExpired && (
+              <span className="expired-badge">New Puzzle Available!</span>
+            )}
+          </div>
+        )}
 
         {isGameOver && (
           <div className="modal-actions">

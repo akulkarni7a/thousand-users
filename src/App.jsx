@@ -10,6 +10,8 @@ import {
 } from './data/nflPlayers'
 import { scheduleStorageWrite, getStorageItem } from './utils/asyncStorage'
 import { parseDeepLink, cleanUrlParameters } from './utils/deepLinkRouter'
+import { sanitizeStats, updateStatsOnGameEnd, getCurrentUTCDateString } from './services/streakService'
+import useNextPuzzleCountdown from './hooks/useNextPuzzleCountdown'
 import PlayerSearch from './components/PlayerSearch'
 import GuessGrid from './components/GuessGrid'
 import StatsModal from './components/StatsModal'
@@ -34,7 +36,7 @@ function loadInitialAppState() {
     const savedStats = getStorageItem('gridiron_guesser_stats')
     if (savedStats) {
       const parsed = typeof savedStats === 'string' ? JSON.parse(savedStats) : savedStats
-      stats = { ...DEFAULT_STATS, ...parsed }
+      stats = sanitizeStats({ ...DEFAULT_STATS, ...parsed })
     }
   } catch {
     // ignore storage errors
@@ -69,6 +71,8 @@ export default function App() {
   const [copiedShare, setCopiedShare] = useState(false)
   const [stats, setStats] = useState(() => initialAppState.stats)
 
+  const nextPuzzleCountdown = useNextPuzzleCountdown(dailyDate)
+
   const handleCloseHelp = () => {
     scheduleStorageWrite(WELCOME_STORAGE_KEY, 'true')
     setIsHelpOpen(false)
@@ -90,7 +94,7 @@ export default function App() {
   // Save daily state to localStorage asynchronously on update when in daily mode
   useEffect(() => {
     if (gameMode === 'daily') {
-      const targetDate = dailyDate || new Date().toISOString().slice(0, 10)
+      const targetDate = dailyDate || getCurrentUTCDateString()
       const pNum = getPuzzleNumber(targetDate)
       saveDailyState({
         date: targetDate,
@@ -105,7 +109,7 @@ export default function App() {
   const initGame = (mode) => {
     setGameMode(mode)
     if (mode === 'daily') {
-      const todayStr = new Date().toISOString().slice(0, 10)
+      const todayStr = getCurrentUTCDateString()
       setDailyDate(todayStr)
       setTargetPlayer(getDailyPlayer(todayStr))
       const saved = loadDailyState(todayStr)
@@ -139,35 +143,14 @@ export default function App() {
 
       // Update statistics only for daily mode
       if (gameMode === 'daily') {
-        setStats((prev) => {
-          const todayStr = new Date().toISOString().slice(0, 10)
-          const isNewDay = prev.lastPlayedDate !== todayStr
-          const newPlayed = prev.played + 1
-          const newWon = isWin ? prev.won + 1 : prev.won
-          
-          let newStreak = prev.currentStreak
-          if (isWin) {
-            newStreak = isNewDay ? prev.currentStreak + 1 : prev.currentStreak
-          } else {
-            newStreak = 0
-          }
-
-          const newMaxStreak = Math.max(prev.maxStreak, newStreak)
-          const numGuesses = newGuesses.length
-          const newDist = { ...prev.guessDistribution }
-          if (isWin && numGuesses >= 1 && numGuesses <= 8) {
-            newDist[numGuesses] = (newDist[numGuesses] || 0) + 1
-          }
-
-          return {
-            played: newPlayed,
-            won: newWon,
-            currentStreak: newStreak,
-            maxStreak: newMaxStreak,
-            guessDistribution: newDist,
-            lastPlayedDate: todayStr,
-          }
-        })
+        setStats((prev) =>
+          updateStatsOnGameEnd(prev, {
+            isWin,
+            isDaily: true,
+            numGuesses: newGuesses.length,
+            dateStr: dailyDate || getCurrentUTCDateString(),
+          })
+        )
       }
     }
   }
@@ -273,6 +256,21 @@ export default function App() {
                 ? `🎉 Correct! It's ${targetPlayer.name}!`
                 : `🏈 Out of guesses! Mystery player was ${targetPlayer.name}.`}
             </p>
+            {gameMode === 'daily' && (
+              <div className="next-puzzle-countdown-bar">
+                <span className="countdown-label">Next Daily Puzzle In:</span>
+                <span className="countdown-value">{nextPuzzleCountdown.formattedTime}</span>
+                {nextPuzzleCountdown.isExpired && (
+                  <button
+                    type="button"
+                    className="refresh-puzzle-btn"
+                    onClick={() => initGame('daily')}
+                  >
+                    🔄 Load New Daily Puzzle
+                  </button>
+                )}
+              </div>
+            )}
             <div className="end-btn-group">
               <button type="button" className="quick-share-btn" onClick={handleQuickShare}>
                 {copiedShare ? '✅ Copied!' : '📤 Share Results'}
