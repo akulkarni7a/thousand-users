@@ -93,4 +93,77 @@ describe('useNextPuzzleCountdown hook', () => {
     })
     expect(clearIntervalSpy).toHaveBeenCalled()
   })
+
+  test('useNextPuzzleCountdown with enabled: false returns initial time without starting interval', () => {
+    const nowMs = Date.UTC(2026, 9, 1, 23, 59, 58, 0)
+    vi.setSystemTime(nowMs)
+
+    const setIntervalSpy = vi.spyOn(window, 'setInterval')
+
+    function DisabledComponent() {
+      const countdown = useNextPuzzleCountdown('2026-10-01', { enabled: false })
+      return React.createElement('div', { id: 'timer' }, countdown.formattedTime)
+    }
+
+    act(() => {
+      root.render(React.createElement(DisabledComponent))
+    })
+
+    expect(container.querySelector('#timer').textContent).toBe('00:00:02')
+    expect(setIntervalSpy).not.toHaveBeenCalled()
+
+    // Advance 5 seconds - text should remain unchanged because interval is not running
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+
+    expect(container.querySelector('#timer').textContent).toBe('00:00:02')
+  })
+
+  test('useNextPuzzleCountdown starts and stops interval when enabled prop changes dynamically', () => {
+    const nowMs = Date.UTC(2026, 9, 1, 23, 59, 58, 0)
+    vi.setSystemTime(nowMs)
+
+    function DynamicComponent({ enabled }) {
+      const countdown = useNextPuzzleCountdown('2026-10-01', { enabled })
+      return React.createElement('div', { id: 'timer' }, countdown.formattedTime)
+    }
+
+    act(() => {
+      root.render(React.createElement(DynamicComponent, { enabled: false }))
+    })
+
+    expect(container.querySelector('#timer').textContent).toBe('00:00:02')
+
+    // Advance 1 second while disabled
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(container.querySelector('#timer').textContent).toBe('00:00:02')
+
+    // Enable hook
+    act(() => {
+      root.render(React.createElement(DynamicComponent, { enabled: true }))
+    })
+
+    // On enable, tick updates time immediately
+    expect(container.querySelector('#timer').textContent).toBe('00:00:01')
+
+    // Advance 1 second while enabled
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(container.querySelector('#timer').textContent).toBe('00:00:00')
+
+    // Disable hook again
+    act(() => {
+      root.render(React.createElement(DynamicComponent, { enabled: false }))
+    })
+
+    // Advance 5 seconds while disabled
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+    expect(container.querySelector('#timer').textContent).toBe('00:00:00')
+  })
 })

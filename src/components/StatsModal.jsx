@@ -15,7 +15,8 @@ export default function StatsModal({
   onPlayAgain,
 }) {
   const [copied, setCopied] = useState(false)
-  const countdown = useNextPuzzleCountdown()
+  const isCountdownActive = Boolean(isOpen && (gameMode === 'daily' || isGameOver))
+  const countdown = useNextPuzzleCountdown({ enabled: isCountdownActive })
 
   if (!isOpen) return null
 
