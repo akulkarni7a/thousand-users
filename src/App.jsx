@@ -71,7 +71,8 @@ export default function App() {
   const [copiedShare, setCopiedShare] = useState(false)
   const [stats, setStats] = useState(() => initialAppState.stats)
 
-  const nextPuzzleCountdown = useNextPuzzleCountdown(dailyDate)
+  const isCountdownVisible = gameStatus !== 'IN_PROGRESS' && gameMode === 'daily'
+  const nextPuzzleCountdown = useNextPuzzleCountdown(dailyDate, { enabled: isCountdownVisible })
 
   const handleCloseHelp = () => {
     scheduleStorageWrite(WELCOME_STORAGE_KEY, 'true')

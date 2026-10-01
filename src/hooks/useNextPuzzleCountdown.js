@@ -55,35 +55,41 @@ export function calculateCountdownState(targetMs) {
  * @param {Object} [optionsArg]
  * @returns {Object} Countdown state
  */
-export function useNextPuzzleCountdown(targetDateOrOptions) {
+export function useNextPuzzleCountdown(targetDateOrOptions, optionsArg) {
   let targetDateInput = null
+  let enabled = true
 
   if (targetDateOrOptions && typeof targetDateOrOptions === 'object' && !(targetDateOrOptions instanceof Date)) {
-    targetDateInput = null
+    targetDateInput = targetDateOrOptions.targetDate ?? null
+    enabled = targetDateOrOptions.enabled ?? true
   } else {
-    targetDateInput = targetDateOrOptions
+    targetDateInput = targetDateOrOptions ?? null
+    if (optionsArg && typeof optionsArg === 'object' && optionsArg !== null) {
+      enabled = optionsArg.enabled ?? true
+    }
   }
 
   const targetMs = getNextPuzzleMidnightUTC(targetDateInput)
   const [countdown, setCountdown] = useState(() => calculateCountdownState(targetMs))
 
   useEffect(() => {
-    let timerId = null
+    if (!enabled) {
+      return
+    }
 
     const tick = () => {
-      const nextState = calculateCountdownState(targetMs)
-      setCountdown(nextState)
+      setCountdown(calculateCountdownState(targetMs))
     }
 
     tick()
-    timerId = setInterval(tick, 1000)
+    const timerId = setInterval(tick, 1000)
 
     return () => {
       if (timerId) {
         clearInterval(timerId)
       }
     }
-  }, [targetMs])
+  }, [targetMs, enabled])
 
   return countdown
 }
