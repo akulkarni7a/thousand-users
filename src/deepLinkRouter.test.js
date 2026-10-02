@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   parseDeepLink,
   saveReferralContext,
+  getStoredReferralContext,
   extractReferralContext,
   getDateFromPuzzleNumber,
   cleanUrlParameters,
@@ -105,6 +106,23 @@ describe('deepLinkRouter utility module', () => {
     it('fails safely when null or empty data is provided', () => {
       expect(() => saveReferralContext(null)).not.toThrow()
       expect(() => saveReferralContext(undefined)).not.toThrow()
+    })
+  })
+
+  describe('getStoredReferralContext', () => {
+    it('returns null when storage contains no referral context', () => {
+      expect(getStoredReferralContext()).toBeNull()
+    })
+
+    it('retrieves saved referral context from local storage', () => {
+      const data = { utm_source: 'twitter', utm_medium: 'social', utm_campaign: 'launch' }
+      saveReferralContext(data)
+      expect(getStoredReferralContext()).toMatchObject(data)
+    })
+
+    it('handles invalid or corrupted JSON in storage gracefully', () => {
+      globalThis.localStorage.setItem(REFERRAL_STORAGE_KEY, '{invalid_json_string')
+      expect(getStoredReferralContext()).toBeNull()
     })
   })
 

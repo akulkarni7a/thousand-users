@@ -1,4 +1,4 @@
-import { scheduleStorageWrite } from './asyncStorage.js'
+import { scheduleStorageWrite, getStorageItem } from './asyncStorage.js'
 import {
   NFL_PLAYERS,
   getDailyPlayer,
@@ -70,6 +70,24 @@ export function saveReferralContext(referralData) {
   } catch {
     // ignore storage errors
   }
+}
+
+/**
+ * Safely retrieves stored referral context from local storage.
+ * Returns referral context object or null if absent or invalid.
+ */
+export function getStoredReferralContext() {
+  try {
+    const raw = getStorageItem(REFERRAL_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (parsed && typeof parsed === 'object') {
+      return parsed
+    }
+  } catch {
+    // ignore parse or storage errors
+  }
+  return null
 }
 
 /**

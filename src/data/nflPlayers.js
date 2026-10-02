@@ -3,6 +3,7 @@ import {
   getStorageItem,
   removeStorageItem,
 } from '../utils/asyncStorage.js'
+import { getStoredReferralContext } from '../utils/deepLinkRouter.js'
 
 export const NFL_PLAYERS = [
   {
@@ -663,7 +664,27 @@ export function getDateFromPuzzleNumber(puzzleNum) {
   return targetDate.toISOString().slice(0, 10)
 }
 
-export function generateShareCard(guesses, targetPlayer, gameMode = 'daily', puzzleNum = 1, isWin = false) {
+export function buildShareUrl({
+  gameMode = 'daily',
+  puzzleNum = 1,
+  targetPlayer = null,
+  referralContext = null,
+} = {}) {
+  const ctx = referralContext || getStoredReferralContext() || {}
+  const source = ctx.utm_source || 'share_card'
+  const medium = ctx.utm_medium || 'social'
+  const campaign = ctx.utm_campaign || (gameMode === 'daily' ? 'daily_challenge' : 'practice_mode')
+
+  let shareUrl = `https://gridiron-guesser.app?utm_source=${encodeURIComponent(source)}&utm_medium=${encodeURIComponent(medium)}&utm_campaign=${encodeURIComponent(campaign)}&mode=${encodeURIComponent(gameMode)}`
+  if (gameMode === 'daily') {
+    shareUrl += `&puzzle=${encodeURIComponent(puzzleNum)}`
+  } else if (gameMode === 'practice' && targetPlayer?.id) {
+    shareUrl += `&player=${encodeURIComponent(targetPlayer.id)}`
+  }
+  return shareUrl
+}
+
+export function generateShareCard(guesses, targetPlayer, gameMode = 'daily', puzzleNum = 1, isWin = false, referralContext = null) {
   const guessCountText = isWin ? `${guesses.length}/8` : 'X/8'
   const title = gameMode === 'daily' ? `Gridiron Guesser #${puzzleNum}` : `Gridiron Guesser Practice`
   
@@ -693,13 +714,7 @@ export function generateShareCard(guesses, targetPlayer, gameMode = 'daily', puz
     ].join('')
   })
 
-  const campaign = gameMode === 'daily' ? 'daily_challenge' : 'practice_mode'
-  let shareUrl = `https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=${campaign}&mode=${gameMode}`
-  if (gameMode === 'daily') {
-    shareUrl += `&puzzle=${puzzleNum}`
-  } else if (gameMode === 'practice' && targetPlayer?.id) {
-    shareUrl += `&player=${targetPlayer.id}`
-  }
+  const shareUrl = buildShareUrl({ gameMode, puzzleNum, targetPlayer, referralContext })
 
   return `${title} ${guessCountText}\n\n${rows.join('\n')}\n\n${shareUrl}`
 }
@@ -710,18 +725,14 @@ export async function shareGameResults({
   gameMode = 'daily',
   puzzleNum = 1,
   isWin = false,
+  referralContext = null,
   onCopySuccess = () => {},
   onCopyError = () => {},
 }) {
-  const shareText = generateShareCard(guesses, targetPlayer, gameMode, puzzleNum, isWin)
+  const refContext = referralContext || getStoredReferralContext()
+  const shareText = generateShareCard(guesses, targetPlayer, gameMode, puzzleNum, isWin, refContext)
   const title = gameMode === 'daily' ? `Gridiron Guesser #${puzzleNum}` : 'Gridiron Guesser Practice'
-  const campaign = gameMode === 'daily' ? 'daily_challenge' : 'practice_mode'
-  let shareUrl = `https://gridiron-guesser.app?utm_source=share_card&utm_medium=social&utm_campaign=${campaign}&mode=${gameMode}`
-  if (gameMode === 'daily') {
-    shareUrl += `&puzzle=${puzzleNum}`
-  } else if (gameMode === 'practice' && targetPlayer?.id) {
-    shareUrl += `&player=${targetPlayer.id}`
-  }
+  const shareUrl = buildShareUrl({ gameMode, puzzleNum, targetPlayer, referralContext: refContext })
 
   const copyToClipboard = async () => {
     try {
