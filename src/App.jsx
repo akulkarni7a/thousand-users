@@ -165,6 +165,7 @@ export default function App() {
       gameMode,
       puzzleNum: currentPuzzleNum,
       isWin,
+      referralContext: initialAppState.routeState?.referralContext,
       onCopySuccess: () => {
         setCopiedShare(true)
         setTimeout(() => setCopiedShare(false), 2500)
