@@ -173,24 +173,66 @@ test('saveDailyState and loadDailyState persist state for same date', () => {
   expect(loaded.gameStatus).toBe('IN_PROGRESS')
 })
 
-test('loadDailyState purges stale daily state when date changes', () => {
-  const yesterdayStr = '2026-09-17'
-  const todayStr = '2026-09-18'
+test('loadDailyState performs non-destructive reads and preserves state when date changes', () => {
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const yesterdayStr = '2025-01-01'
 
-  const yesterdayState = {
-    date: yesterdayStr,
-    puzzleNum: 260,
+  const todayState = {
+    date: todayStr,
+    puzzleNum: getPuzzleNumber(todayStr),
+    guesses: [NFL_PLAYERS[1]],
+    gameStatus: 'IN_PROGRESS',
+  }
+
+  saveDailyState(todayState)
+  expect(localStorage.getItem(DAILY_STORAGE_KEY)).not.toBeNull()
+
+  // Calling loadDailyState for yesterday should return null without purging today's state from DAILY_STORAGE_KEY
+  const loadedYesterday = loadDailyState(yesterdayStr)
+  expect(loadedYesterday).toBeNull()
+  expect(localStorage.getItem(DAILY_STORAGE_KEY)).not.toBeNull()
+
+  // Returning to today restores today's exact state
+  const loadedToday = loadDailyState(todayStr)
+  expect(loadedToday).not.toBeNull()
+  expect(loadedToday.date).toBe(todayStr)
+  expect(loadedToday.guesses).toHaveLength(1)
+})
+
+test('historical deep link puzzle state is saved independently under date-scoped key', () => {
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const historicalStr = '2025-01-01'
+
+  const todayState = {
+    date: todayStr,
+    puzzleNum: getPuzzleNumber(todayStr),
     guesses: [NFL_PLAYERS[0]],
+    gameStatus: 'IN_PROGRESS',
+  }
+  const historicalState = {
+    date: historicalStr,
+    puzzleNum: 1,
+    guesses: [NFL_PLAYERS[2]],
     gameStatus: 'WON',
   }
 
-  saveDailyState(yesterdayState)
-  expect(localStorage.getItem(DAILY_STORAGE_KEY)).not.toBeNull()
+  saveDailyState(todayState)
+  saveDailyState(historicalState)
 
-  // Calling loadDailyState for today should purge stale state
-  const loaded = loadDailyState(todayStr)
-  expect(loaded).toBeNull()
-  expect(localStorage.getItem(DAILY_STORAGE_KEY)).toBeNull()
+  // Verify historical state saved under date-scoped key
+  const historicalKey = `${DAILY_STORAGE_KEY}_${historicalStr}`
+  expect(localStorage.getItem(historicalKey)).not.toBeNull()
+
+  // Today state remains untouched
+  const loadedToday = loadDailyState(todayStr)
+  expect(loadedToday).not.toBeNull()
+  expect(loadedToday.guesses[0].id).toBe(NFL_PLAYERS[0].id)
+
+  // Historical state loads independently
+  const loadedHistorical = loadDailyState(historicalStr)
+  expect(loadedHistorical).not.toBeNull()
+  expect(loadedHistorical.guesses[0].id).toBe(NFL_PLAYERS[2].id)
+  expect(loadedHistorical.gameStatus).toBe('WON')
 })
 
 test('App rehydrates saved daily state on render', () => {
