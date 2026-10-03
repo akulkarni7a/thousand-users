@@ -1,7 +1,6 @@
 import {
   scheduleStorageWrite,
   getStorageItem,
-  removeStorageItem,
 } from '../utils/asyncStorage.js'
 import { getStoredReferralContext } from '../utils/deepLinkRouter.js'
 
@@ -598,23 +597,41 @@ export function comparePlayers(guess, target) {
 
 export const DAILY_STORAGE_KEY = 'gridiron_guesser_daily_state'
 
+export function getDailyStateKey(dateStr) {
+  const targetDate = dateStr || new Date().toISOString().slice(0, 10)
+  return `${DAILY_STORAGE_KEY}_${targetDate}`
+}
+
 export function loadDailyState(dateStr) {
-  const todayStr = dateStr || new Date().toISOString().slice(0, 10)
+  const targetDate = dateStr || new Date().toISOString().slice(0, 10)
   try {
-    const saved = getStorageItem(DAILY_STORAGE_KEY)
-    if (!saved) return null
-    const parsed = typeof saved === 'string' ? JSON.parse(saved) : saved
-    if (parsed && typeof parsed === 'object' && parsed.date === todayStr) {
+    const dateKey = getDailyStateKey(targetDate)
+    const savedDateKey = getStorageItem(dateKey)
+    let parsed = null
+
+    if (savedDateKey) {
+      parsed = typeof savedDateKey === 'string' ? JSON.parse(savedDateKey) : savedDateKey
+    }
+
+    if (!parsed || typeof parsed !== 'object' || parsed.date !== targetDate) {
+      const savedLegacy = getStorageItem(DAILY_STORAGE_KEY)
+      if (savedLegacy) {
+        const parsedLegacy = typeof savedLegacy === 'string' ? JSON.parse(savedLegacy) : savedLegacy
+        if (parsedLegacy && typeof parsedLegacy === 'object' && parsedLegacy.date === targetDate) {
+          parsed = parsedLegacy
+        }
+      }
+    }
+
+    if (parsed && typeof parsed === 'object' && parsed.date === targetDate) {
       return {
         date: parsed.date,
-        puzzleNum: typeof parsed.puzzleNum === 'number' ? parsed.puzzleNum : getPuzzleNumber(todayStr),
+        puzzleNum: typeof parsed.puzzleNum === 'number' ? parsed.puzzleNum : getPuzzleNumber(targetDate),
         guesses: Array.isArray(parsed.guesses) ? parsed.guesses : [],
         gameStatus: ['IN_PROGRESS', 'WON', 'LOST'].includes(parsed.gameStatus)
           ? parsed.gameStatus
           : 'IN_PROGRESS',
       }
-    } else {
-      removeStorageItem(DAILY_STORAGE_KEY)
     }
   } catch {
     // ignore storage errors
@@ -625,7 +642,14 @@ export function loadDailyState(dateStr) {
 export function saveDailyState(state) {
   try {
     if (!state) return
-    scheduleStorageWrite(DAILY_STORAGE_KEY, state)
+    const targetDate = state.date || new Date().toISOString().slice(0, 10)
+    const dateKey = getDailyStateKey(targetDate)
+    scheduleStorageWrite(dateKey, state)
+
+    const todayStr = new Date().toISOString().slice(0, 10)
+    if (targetDate === todayStr) {
+      scheduleStorageWrite(DAILY_STORAGE_KEY, state)
+    }
   } catch {
     // ignore storage errors
   }

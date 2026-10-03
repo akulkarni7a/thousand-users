@@ -13,7 +13,7 @@ import {
   flushPendingStorageWrites,
   removeStorageItem,
 } from './utils/asyncStorage.js'
-import { getDailyPlayer } from './data/nflPlayers.js'
+import { getDailyPlayer, loadDailyState, saveDailyState, NFL_PLAYERS, getPuzzleNumber } from './data/nflPlayers.js'
 
 if (typeof globalThis.localStorage === 'undefined' || !globalThis.localStorage.setItem) {
   let store = {}
@@ -227,6 +227,26 @@ describe('deepLinkRouter utility module', () => {
       expect(result.gameMode).toBe('daily')
       expect(result.puzzleNum).toBe(42)
       expect(result.targetDate).toBe('2026-02-11')
+    })
+
+    it('parses cross-date deep link without purging stored state for today', () => {
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const todayState = {
+        date: todayStr,
+        puzzleNum: getPuzzleNumber(todayStr),
+        guesses: [NFL_PLAYERS[0]],
+        gameStatus: 'IN_PROGRESS',
+      }
+      saveDailyState(todayState)
+
+      const url = '?mode=daily&puzzle=1'
+      const result = parseDeepLink(url)
+
+      expect(result.gameMode).toBe('daily')
+      expect(result.puzzleNum).toBe(1)
+      expect(result.targetDate).toBe('2026-01-01')
+      expect(loadDailyState(todayStr)).not.toBeNull()
+      expect(loadDailyState(todayStr).guesses).toHaveLength(1)
     })
   })
 
