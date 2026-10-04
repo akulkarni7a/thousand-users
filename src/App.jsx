@@ -11,7 +11,7 @@ import {
 import { scheduleStorageWrite, getStorageItem } from './utils/asyncStorage'
 import { parseDeepLink, cleanUrlParameters } from './utils/deepLinkRouter'
 import { sanitizeStats, updateStatsOnGameEnd, getCurrentUTCDateString } from './services/streakService'
-import useNextPuzzleCountdown from './hooks/useNextPuzzleCountdown'
+import NextPuzzleCountdown from './components/NextPuzzleCountdown'
 import PlayerSearch from './components/PlayerSearch'
 import GuessGrid from './components/GuessGrid'
 import StatsModal from './components/StatsModal'
@@ -70,9 +70,6 @@ export default function App() {
   const [isHelpOpen, setIsHelpOpen] = useState(() => initialAppState.isHelpOpen)
   const [copiedShare, setCopiedShare] = useState(false)
   const [stats, setStats] = useState(() => initialAppState.stats)
-
-  const isCountdownVisible = gameStatus !== 'IN_PROGRESS' && gameMode === 'daily'
-  const nextPuzzleCountdown = useNextPuzzleCountdown(dailyDate, { enabled: isCountdownVisible })
 
   const handleCloseHelp = () => {
     scheduleStorageWrite(WELCOME_STORAGE_KEY, 'true')
@@ -259,19 +256,7 @@ export default function App() {
                 : `🏈 Out of guesses! Mystery player was ${targetPlayer.name}.`}
             </p>
             {gameMode === 'daily' && (
-              <div className="next-puzzle-countdown-bar">
-                <span className="countdown-label">Next Daily Puzzle In:</span>
-                <span className="countdown-value">{nextPuzzleCountdown.formattedTime}</span>
-                {nextPuzzleCountdown.isExpired && (
-                  <button
-                    type="button"
-                    className="refresh-puzzle-btn"
-                    onClick={() => initGame('daily')}
-                  >
-                    🔄 Load New Daily Puzzle
-                  </button>
-                )}
-              </div>
+              <NextPuzzleCountdown dailyDate={dailyDate} onRefresh={() => initGame('daily')} />
             )}
             <div className="end-btn-group">
               <button type="button" className="quick-share-btn" onClick={handleQuickShare}>
