@@ -281,3 +281,30 @@ test('PlayerSearch avoids calling getSearchResults during unrelated App state ch
   getSearchResultsSpy.mockRestore()
 })
 
+test('getSearchResults executes zero Array.prototype.sort allocations for empty query starter recommendations', () => {
+  const sortSpy = vi.spyOn(Array.prototype, 'sort')
+
+  const starterResults = nflPlayers.getSearchResults(nflPlayers.NFL_PLAYERS, '')
+  expect(starterResults.length).toBeGreaterThan(0)
+  expect(sortSpy).not.toHaveBeenCalled()
+
+  sortSpy.mockRestore()
+})
+
+test('PRO_BOWL_SORTED_PLAYERS is pre-sorted by proBowls descending while primary NFL_PLAYERS order remains untouched', () => {
+  expect(nflPlayers.PRO_BOWL_SORTED_PLAYERS).toBeDefined()
+  expect(nflPlayers.PRO_BOWL_SORTED_PLAYERS.length).toBe(nflPlayers.NFL_PLAYERS.length)
+
+  // Verify PRO_BOWL_SORTED_PLAYERS is sorted by proBowls descending
+  for (let i = 0; i < nflPlayers.PRO_BOWL_SORTED_PLAYERS.length - 1; i++) {
+    expect(nflPlayers.PRO_BOWL_SORTED_PLAYERS[i].proBowls).toBeGreaterThanOrEqual(
+      nflPlayers.PRO_BOWL_SORTED_PLAYERS[i + 1].proBowls
+    )
+  }
+
+  // Verify NFL_PLAYERS primary array order is unmodified (e.g. Mahomes is first item id: '1')
+  expect(nflPlayers.NFL_PLAYERS[0].id).toBe('1')
+  expect(nflPlayers.NFL_PLAYERS[0].name).toBe('Patrick Mahomes')
+})
+
+

@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { memo, useState, useRef, useEffect, useMemo } from 'react'
 import { NFL_PLAYERS, getSearchResults } from '../data/nflPlayers'
 
 const CATEGORIES = ['All', 'QB', 'RB', 'WR', 'Offense', 'Defense', 'AFC', 'NFC']
+const DEFAULT_GUESSED_IDS = []
 
-export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled = false }) {
+function PlayerSearch({ onSelectPlayer, guessedIds = DEFAULT_GUESSED_IDS, disabled = false }) {
   const [inputValue, setInputValue] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [category, setCategory] = useState('All')
@@ -169,3 +170,5 @@ export default function PlayerSearch({ onSelectPlayer, guessedIds = [], disabled
     </div>
   )
 }
+
+export default memo(PlayerSearch)
