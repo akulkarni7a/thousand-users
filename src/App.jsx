@@ -127,33 +127,40 @@ export default function App() {
 
   const handleSelectPlayer = useCallback(
     (player) => {
-      if (gameStatus !== 'IN_PROGRESS' || guesses.length >= 8) return
+      if (gameStatus !== 'IN_PROGRESS') return
 
-      const newGuesses = [...guesses, player]
-      setGuesses(newGuesses)
-
-      const isWin = String(player.id) === String(targetPlayer.id)
-      const isLoss = !isWin && newGuesses.length >= 8
-      const status = isWin ? 'WON' : isLoss ? 'LOST' : 'IN_PROGRESS'
-
-      if (isWin || isLoss) {
-        setGameStatus(status)
-        setIsStatsOpen(true)
-
-        // Update statistics only for daily mode
-        if (gameMode === 'daily') {
-          setStats((prev) =>
-            updateStatsOnGameEnd(prev, {
-              isWin,
-              isDaily: true,
-              numGuesses: newGuesses.length,
-              dateStr: dailyDate || getCurrentUTCDateString(),
-            })
-          )
+      setGuesses((prevGuesses) => {
+        if (prevGuesses.length >= 8 || prevGuesses.some((g) => String(g.id) === String(targetPlayer.id))) {
+          return prevGuesses
         }
-      }
+
+        const newGuesses = [...prevGuesses, player]
+
+        const isWin = String(player.id) === String(targetPlayer.id)
+        const isLoss = !isWin && newGuesses.length >= 8
+        const status = isWin ? 'WON' : isLoss ? 'LOST' : 'IN_PROGRESS'
+
+        if (isWin || isLoss) {
+          setGameStatus(status)
+          setIsStatsOpen(true)
+
+          // Update statistics only for daily mode
+          if (gameMode === 'daily') {
+            setStats((prev) =>
+              updateStatsOnGameEnd(prev, {
+                isWin,
+                isDaily: true,
+                numGuesses: newGuesses.length,
+                dateStr: dailyDate || getCurrentUTCDateString(),
+              })
+            )
+          }
+        }
+
+        return newGuesses
+      })
     },
-    [gameStatus, guesses, targetPlayer, gameMode, dailyDate]
+    [gameStatus, targetPlayer, gameMode, dailyDate]
   )
 
   const handleQuickShare = async () => {
