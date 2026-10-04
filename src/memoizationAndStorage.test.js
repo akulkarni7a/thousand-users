@@ -7,6 +7,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 import { createRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import GuessGrid from './components/GuessGrid.jsx'
+import PlayerSearch from './components/PlayerSearch.jsx'
 import App from './App.jsx'
 import * as nflPlayers from './data/nflPlayers.js'
 import {
@@ -239,6 +240,57 @@ test('selecting a player guess in daily mode triggers exactly one daily state pe
   })
   container.remove()
   saveDailyStateSpy.mockRestore()
+})
+
+test('handleSelectPlayer callback passed to PlayerSearch retains stable reference identity across user guesses', () => {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+
+  localStorage.setItem(nflPlayers.WELCOME_STORAGE_KEY, 'true')
+
+  const spy = vi.spyOn(PlayerSearch, 'type')
+
+  act(() => {
+    root.render(React.createElement(App))
+  })
+
+  expect(spy.mock.calls.length).toBeGreaterThan(0)
+  const firstCallProps = spy.mock.calls[spy.mock.calls.length - 1][0]
+  const initialOnSelectPlayer = firstCallProps.onSelectPlayer
+  expect(initialOnSelectPlayer).toBeTypeOf('function')
+
+  const input = container.querySelector('.search-input')
+  expect(input).toBeTruthy()
+
+  act(() => {
+    input.focus()
+  })
+
+  const item = container.querySelector('.search-result-item')
+  expect(item).toBeTruthy()
+
+  // Make first guess
+  act(() => {
+    item.click()
+  })
+
+  // Check if PlayerSearch rendered or received props
+  const lastCallProps = spy.mock.calls[spy.mock.calls.length - 1][0]
+  expect(lastCallProps.onSelectPlayer).toBe(initialOnSelectPlayer)
+
+  // Verify guess was stored correctly
+  flushPendingStorageWrites()
+  const saved = localStorage.getItem(nflPlayers.DAILY_STORAGE_KEY)
+  expect(saved).not.toBeNull()
+  const parsed = JSON.parse(saved)
+  expect(parsed.guesses.length).toBe(1)
+
+  spy.mockRestore()
+  act(() => {
+    root.unmount()
+  })
+  container.remove()
 })
 
 test('PlayerSearch avoids calling getSearchResults during unrelated App state changes', () => {
