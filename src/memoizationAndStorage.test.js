@@ -307,4 +307,37 @@ test('PRO_BOWL_SORTED_PLAYERS is pre-sorted by proBowls descending while primary
   expect(nflPlayers.NFL_PLAYERS[0].name).toBe('Patrick Mahomes')
 })
 
+test('getItem interceptor and getStorageItem perform zero runtime JSON stringifications during reads of pending writes', () => {
+  const key = 'test_eager_read_key'
+  const objVal = { foo: 'bar', stats: [1, 2, 3] }
+  const expectedStr = JSON.stringify(objVal)
+
+  const stringifySpy = vi.spyOn(JSON, 'stringify')
+
+  scheduleStorageWrite(key, objVal, 500)
+
+  // Object was eager stringified exactly once at schedule time
+  expect(stringifySpy).toHaveBeenCalledTimes(1)
+
+  const callsAfterSchedule = stringifySpy.mock.calls.length
+
+  // Subsequent reads via getStorageItem should perform zero JSON.stringify calls
+  const read = getStorageItem(key)
+
+  expect(read).toBe(expectedStr)
+
+  expect(stringifySpy.mock.calls.length).toBe(callsAfterSchedule)
+
+  stringifySpy.mockRestore()
+})
+
+test('scheduleStorageWrite catches non-serializable object exceptions and falls back to null', () => {
+  const circular = {}
+  circular.self = circular
+
+  scheduleStorageWrite('circular_key', circular, 500)
+
+  expect(getStorageItem('circular_key')).toBeNull()
+})
+
 

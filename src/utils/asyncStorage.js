@@ -23,8 +23,7 @@ function ensureLocalStorageIntercepted() {
   if (origGet) {
     ls.getItem = function (key) {
       if (pendingWrites.has(key)) {
-        const val = pendingWrites.get(key)
-        return typeof val === 'string' ? val : JSON.stringify(val)
+        return pendingWrites.get(key)
       }
       return origGet(key)
     }
@@ -72,8 +71,7 @@ export function flushPendingStorageWrites() {
       if (value === null || value === undefined) {
         localStorage.removeItem(key)
       } else {
-        const strVal = typeof value === 'string' ? value : JSON.stringify(value)
-        localStorage.setItem(key, strVal)
+        localStorage.setItem(key, value)
       }
     } catch {
       // ignore storage errors
@@ -88,7 +86,17 @@ export function flushPendingStorageWrites() {
  */
 export function scheduleStorageWrite(key, value, delay = 100) {
   ensureLocalStorageIntercepted()
-  pendingWrites.set(key, value)
+
+  let valToStore = value
+  if (value !== null && value !== undefined && typeof value !== 'string') {
+    try {
+      valToStore = JSON.stringify(value)
+    } catch {
+      valToStore = null
+    }
+  }
+
+  pendingWrites.set(key, valToStore)
 
   if (timers.has(key)) {
     cancelTimer(timers.get(key))
@@ -104,8 +112,7 @@ export function scheduleStorageWrite(key, value, delay = 100) {
         if (val === null || val === undefined) {
           localStorage.removeItem(key)
         } else {
-          const strVal = typeof val === 'string' ? val : JSON.stringify(val)
-          localStorage.setItem(key, strVal)
+          localStorage.setItem(key, val)
         }
       } catch {
         // ignore storage errors
@@ -128,8 +135,7 @@ export function scheduleStorageWrite(key, value, delay = 100) {
 export function getStorageItem(key) {
   ensureLocalStorageIntercepted()
   if (pendingWrites.has(key)) {
-    const val = pendingWrites.get(key)
-    return typeof val === 'string' ? val : JSON.stringify(val)
+    return pendingWrites.get(key)
   }
   try {
     return localStorage.getItem(key)
