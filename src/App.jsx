@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   getDailyPlayer,
   getRandomPlayer,
@@ -125,33 +125,36 @@ export default function App() {
     }
   }
 
-  const handleSelectPlayer = (player) => {
-    if (gameStatus !== 'IN_PROGRESS' || guesses.length >= 8) return
+  const handleSelectPlayer = useCallback(
+    (player) => {
+      if (gameStatus !== 'IN_PROGRESS' || guesses.length >= 8) return
 
-    const newGuesses = [...guesses, player]
-    setGuesses(newGuesses)
+      const newGuesses = [...guesses, player]
+      setGuesses(newGuesses)
 
-    const isWin = String(player.id) === String(targetPlayer.id)
-    const isLoss = !isWin && newGuesses.length >= 8
-    const status = isWin ? 'WON' : isLoss ? 'LOST' : 'IN_PROGRESS'
+      const isWin = String(player.id) === String(targetPlayer.id)
+      const isLoss = !isWin && newGuesses.length >= 8
+      const status = isWin ? 'WON' : isLoss ? 'LOST' : 'IN_PROGRESS'
 
-    if (isWin || isLoss) {
-      setGameStatus(status)
-      setIsStatsOpen(true)
+      if (isWin || isLoss) {
+        setGameStatus(status)
+        setIsStatsOpen(true)
 
-      // Update statistics only for daily mode
-      if (gameMode === 'daily') {
-        setStats((prev) =>
-          updateStatsOnGameEnd(prev, {
-            isWin,
-            isDaily: true,
-            numGuesses: newGuesses.length,
-            dateStr: dailyDate || getCurrentUTCDateString(),
-          })
-        )
+        // Update statistics only for daily mode
+        if (gameMode === 'daily') {
+          setStats((prev) =>
+            updateStatsOnGameEnd(prev, {
+              isWin,
+              isDaily: true,
+              numGuesses: newGuesses.length,
+              dateStr: dailyDate || getCurrentUTCDateString(),
+            })
+          )
+        }
       }
-    }
-  }
+    },
+    [gameStatus, guesses, targetPlayer, gameMode, dailyDate]
+  )
 
   const handleQuickShare = async () => {
     const currentPuzzleNum = getPuzzleNumber(dailyDate)
